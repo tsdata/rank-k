@@ -134,24 +134,23 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
             ref_texts, retrieved_texts
         )
         
-        # Build qrels: relevance judgments for reference documents
+        # Build qrels and run with matching document IDs
+        # Use retrieved documents as the base and calculate their relevance
         qrels_dict[query_id] = {}
-        for j, ref_text in enumerate(ref_texts):
-            ref_id = f"ref_{j}"
-            # Maximum similarity with any retrieved document  
-            max_similarity = np.max(similarity_matrix[j, :]) if similarity_matrix.shape[1] > 0 else 0
-            
-            # Only include if above threshold
-            if max_similarity >= similarity_threshold:
-                qrels_dict[query_id][ref_id] = float(max_similarity)
-        
-        # Build run: scores for retrieved documents
         run_dict[query_id] = {}
+        
         for j, ret_text in enumerate(retrieved_texts):
-            ret_id = f"ret_{j}"
-            # Maximum similarity with any reference document
+            doc_id = f"doc_{j}"
+            
+            # Find maximum similarity with any reference document
             max_similarity = np.max(similarity_matrix[:, j]) if similarity_matrix.shape[0] > 0 else 0
-            run_dict[query_id][ret_id] = float(max_similarity)
+            
+            # Add to run (all retrieved documents with their similarity scores)
+            run_dict[query_id][doc_id] = float(max_similarity)
+            
+            # Add to qrels only if above threshold (relevant documents)
+            if max_similarity >= similarity_threshold:
+                qrels_dict[query_id][doc_id] = 1.0  # Binary relevance for ranx metrics
         
         # Debug info for first few queries
         if i < 3:
