@@ -1,12 +1,21 @@
 # ranx-k Documentation
 
+## Language / 언어
+[English](index.md) | [한국어](README.ko.md)
+
 Welcome to ranx-k - Korean-optimized ranx IR evaluation toolkit!
 
 ## Quick Navigation
 
-- [Installation Guide](installation.md)
-- [Quick Start](quickstart.md) 
-- [API Reference](api-reference.md)
+### English Documentation
+- [Installation Guide](en/installation.md)
+- [Quick Start](en/quickstart.md) 
+- [API Reference](en/api-reference.md)
+
+### Korean Documentation / 한국어 문서
+- [설치 가이드](ko/installation.md)
+- [빠른 시작](ko/quickstart.md)
+- [API 참조](ko/api-reference.md)
 
 ## About ranx-k
 
@@ -19,7 +28,7 @@ ranx-k is a specialized toolkit for evaluating Korean RAG (Retrieval-Augmented G
 
 ## Features
 
-### 🔤 Korean Tokenization
+### Korean Tokenization
 ```python
 from ranx_k.tokenizers import KiwiTokenizer
 
@@ -28,7 +37,7 @@ tokens = tokenizer.tokenize('한국어 자연어처리 도구입니다.')
 print(tokens)  # ['한국어', '자연어', '처리', '도구']
 ```
 
-### 📊 Evaluation Methods
+### Evaluation Methods
 ```python
 from ranx_k.evaluation import simple_kiwi_rouge_evaluation
 
@@ -43,7 +52,7 @@ results = simple_kiwi_rouge_evaluation(
 ## Getting Started
 
 1. **Install**: `pip install ranx-k`
-2. **Follow**: [Quick Start Guide](quickstart.md)
+2. **Follow**: [Quick Start Guide](en/quickstart.md)
 3. **Explore**: [Examples](https://github.com/tsdata/rank-k/tree/main/examples)
 
 ## Links

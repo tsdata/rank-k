@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-ranx-k 종합 평가 비교 예제
+ranx-k Comprehensive Evaluation Comparison Example
 
-이 예제는 모든 평가 방법을 종합적으로 비교하고 분석합니다.
+이 예제는 Comprehensively compares and analyzes all evaluation methods.
 """
 
 import time
@@ -22,23 +22,23 @@ class Document:
         self.doc_id = doc_id or str(hash(content))
 
 class ComprehensiveRetriever:
-    """종합 평가를 위한 고도화된 검색기"""
+    """Advanced retriever for comprehensive evaluation"""
     
     def __init__(self, documents: List[str]):
         self.documents = [Document(doc, f"doc_{i}") for i, doc in enumerate(documents)]
         self.tokenizer = KiwiTokenizer(method='morphs', use_stopwords=True)
         
     def invoke(self, query: str, top_k: int = 10) -> List[Document]:
-        """TF-IDF 기반 검색"""
+        """TF-IDF based search"""
         query_tokens = self.tokenizer.tokenize(query)
         
-        # 각 문서의 관련성 점수 계산
+        # Calculate relevance score for each document
         doc_scores = []
         
         for doc in self.documents:
             doc_tokens = self.tokenizer.tokenize(doc.page_content)
             
-            # 간단한 TF-IDF 점수 계산
+            # Simple TF-IDF score calculation
             score = 0
             for token in query_tokens:
                 if token in doc_tokens:
@@ -48,47 +48,47 @@ class ComprehensiveRetriever:
             if score > 0:
                 doc_scores.append((score, doc))
         
-        # 점수 순으로 정렬
+        # Sort by score
         doc_scores.sort(key=lambda x: x[0], reverse=True)
         return [doc for score, doc in doc_scores[:top_k]]
 
 def create_evaluation_dataset():
-    """평가용 데이터셋 생성"""
+    """Create evaluation dataset"""
     
-    # 도메인별 문서 컬렉션
+    # Domain-specific document collection
     documents = [
-        # 자연어처리 관련
+        # Natural language processing related
         "자연어처리는 컴퓨터가 인간의 언어를 이해하고 생성하는 인공지능 기술 분야입니다.",
         "형태소 분석은 한국어 자연어처리의 핵심 기술로 단어를 의미 단위로 분해합니다.",
         "토큰화 과정에서 한국어의 교착어적 특성을 고려해야 정확한 분석이 가능합니다.",
         
-        # RAG 시스템 관련  
+        # RAG system related  
         "RAG는 Retrieval-Augmented Generation의 줄임말로 검색과 생성을 결합한 기술입니다.",
         "검색 증강 생성 시스템은 관련 문서를 찾아 더 정확한 답변을 생성합니다.",
         "RAG 시스템의 성능은 검색 품질과 생성 품질에 모두 의존합니다.",
         
-        # 정보 검색 관련
+        # Information retrieval related
         "정보 검색 시스템의 성능은 정밀도, 재현율, F1 점수로 평가됩니다.",
         "검색 엔진은 사용자 쿼리에 맞는 관련 문서를 빠르게 찾아 제공합니다.",
         "벡터 검색은 의미적 유사도를 기반으로 문서를 검색하는 방법입니다.",
         
-        # 평가 메트릭 관련
+        # Evaluation metrics related
         "ROUGE 메트릭은 요약문의 품질을 평가하는 대표적인 자동 평가 방법입니다.",
         "NDCG는 검색 결과의 순위 품질을 측정하는 정보 검색 평가 지표입니다.",
         "Hit@K는 상위 K개 결과 중 정답이 포함된 비율을 나타내는 메트릭입니다.",
         
-        # 머신러닝 관련
+        # Machine learning related
         "머신러닝 모델의 성능 평가에는 다양한 메트릭과 검증 방법이 사용됩니다.",
         "교차 검증은 모델의 일반화 성능을 평가하는 신뢰할 수 있는 방법입니다.",
         "과적합을 방지하기 위해 정규화 기법과 조기 종료를 활용합니다.",
         
-        # 딥러닝 관련
+        # Deep learning related
         "트랜스포머 아키텍처는 자연어처리 분야에 혁신을 가져온 신경망 구조입니다.",
         "어텐션 메커니즘은 입력 시퀀스의 중요한 부분에 집중할 수 있게 해줍니다.",
         "사전 훈련된 언어 모델은 다양한 하위 작업에 파인튜닝하여 사용할 수 있습니다."
     ]
     
-    # 평가용 질문-답변 쌍
+    # Question-answer pairs for evaluation
     questions = [
         "자연어처리란 무엇인가요?",
         "한국어 토큰화의 특징은?", 
@@ -100,7 +100,7 @@ def create_evaluation_dataset():
         "검색 엔진의 역할은?"
     ]
     
-    # 각 질문에 대한 정답 문서들
+    # Correct documents for each question
     reference_contexts = [
         ["자연어처리는 컴퓨터가 인간의 언어를 이해하고 생성하는 인공지능 기술 분야입니다."],
         ["토큰화 과정에서 한국어의 교착어적 특성을 고려해야 정확한 분석이 가능합니다."],
@@ -115,7 +115,7 @@ def create_evaluation_dataset():
     return documents, questions, reference_contexts
 
 def detailed_performance_analysis(results: Dict[str, Any]):
-    """상세 성능 분석"""
+    """Detailed performance analysis"""
     
     analysis = {
         'rouge_scores': {},
@@ -123,7 +123,7 @@ def detailed_performance_analysis(results: Dict[str, Any]):
         'overall_performance': {}
     }
     
-    # ROUGE 점수 추출
+    # Extract ROUGE scores
     for method, metrics in results.items():
         rouge_scores = {}
         ranx_scores = {}
@@ -146,11 +146,11 @@ def detailed_performance_analysis(results: Dict[str, Any]):
     return analysis
 
 def generate_recommendations(analysis: Dict[str, Any]) -> List[str]:
-    """결과 분석을 바탕으로 권장사항 생성"""
+    """Generate recommendations based on result analysis"""
     
     recommendations = []
     
-    # ROUGE 점수 기반 권장사항
+    # ROUGE score-based recommendations
     if 'rouge_scores' in analysis:
         best_rouge_method = None
         best_rouge_score = 0
@@ -163,48 +163,48 @@ def generate_recommendations(analysis: Dict[str, Any]) -> List[str]:
         
         if best_rouge_method:
             if best_rouge_score > 0.6:
-                recommendations.append(f"✅ {best_rouge_method}가 가장 높은 ROUGE 성능({best_rouge_score:.3f})을 보입니다.")
+                recommendations.append(f"✅ {best_rouge_method} shows the highest ROUGE performance ({best_rouge_score:.3f}).")
             elif best_rouge_score > 0.4:
-                recommendations.append(f"⚠️ {best_rouge_method}가 상대적으로 좋지만({best_rouge_score:.3f}), 개선 여지가 있습니다.")
+                recommendations.append(f"⚠️ {best_rouge_method} is relatively good ({best_rouge_score:.3f}), but has room for improvement.")
             else:
-                recommendations.append(f"🔴 모든 방법의 ROUGE 점수가 낮습니다. 시스템 재검토가 필요합니다.")
+                recommendations.append(f"🔴 All methods have low ROUGE scores. System review is required.")
     
-    # ranx 메트릭 기반 권장사항
+    # ranx metric-based recommendations
     if 'ranx_metrics' in analysis:
-        recommendations.append("📊 ranx 메트릭을 통한 전통적인 IR 평가가 가능합니다.")
+        recommendations.append("📊 Traditional IR evaluation through ranx metrics is available.")
     
-    # 일반적인 권장사항
+    # General recommendations
     recommendations.extend([
-        "🔧 토큰화 방법(morphs vs nouns)을 실험해보세요.",
-        "🎯 similarity_threshold 값을 조정하여 성능을 최적화하세요.",
-        "⚡ 대용량 데이터의 경우 배치 처리를 고려하세요.",
-        "📈 여러 평가 방법을 조합하여 종합적으로 판단하세요."
+        "🔧 Experiment with tokenization methods (morphs vs nouns).",
+        "🎯 Optimize performance by adjusting similarity_threshold values.",
+        "⚡ Consider batch processing for large datasets.",
+        "📈 Make comprehensive judgments by combining multiple evaluation methods."
     ])
     
     return recommendations
 
 def main():
-    print("🏆 ranx-k 종합 평가 비교 예제")
+    print("🏆 ranx-k Comprehensive Evaluation Comparison Example | ranx-k 종합 평가 비교 예제")
     print("=" * 60)
     
-    # 데이터셋 준비
-    print("📊 평가 데이터셋 준비 중...")
+    # Prepare dataset
+    print("📊 Preparing Evaluation Dataset | 평가 데이터셋 준비 중...")
     documents, questions, reference_contexts = create_evaluation_dataset()
     retriever = ComprehensiveRetriever(documents)
     
-    print(f"📚 문서 수: {len(documents)}")
-    print(f"❓ 질문 수: {len(questions)}")
-    print(f"📝 정답 쌍: {len(reference_contexts)}")
+    print(f"📚 Number of Documents | 문서 수: {len(documents)}")
+    print(f"❓ Number of Questions | 질문 수: {len(questions)}")
+    print(f"📝 Answer Pairs | 정답 쌍: {len(reference_contexts)}")
     
-    # 1. 개별 평가 방법 실행
-    print("\n1️⃣ 개별 평가 방법 실행")
+    # 1. Execute individual evaluation methods
+    print("\n1️⃣ Individual Evaluation Methods Execution | 개별 평가 방법 실행")
     print("-" * 40)
     
     evaluation_results = {}
     execution_times = {}
     
     # Simple Kiwi ROUGE
-    print("🔤 Simple Kiwi ROUGE 평가...")
+    print("🔤 Simple Kiwi ROUGE Evaluation | Simple Kiwi ROUGE 평가...")
     start_time = time.time()
     try:
         simple_results = simple_kiwi_rouge_evaluation(
@@ -215,12 +215,12 @@ def main():
         )
         evaluation_results['Simple Kiwi ROUGE'] = simple_results
         execution_times['Simple Kiwi ROUGE'] = time.time() - start_time
-        print(f"   ✅ 완료 ({execution_times['Simple Kiwi ROUGE']:.2f}초)")
+        print(f"   ✅ Completed | 완료 ({execution_times['Simple Kiwi ROUGE']:.2f}초)")
     except Exception as e:
-        print(f"   ❌ 오류: {str(e)}")
+        print(f"   ❌ Error | 오류: {str(e)}")
     
     # Enhanced ROUGE (morphs)
-    print("🔬 Enhanced ROUGE (morphs) 평가...")
+    print("🔬 Enhanced ROUGE (morphs) Evaluation | Enhanced ROUGE (morphs) 평가...")
     start_time = time.time()
     try:
         enhanced_results = rouge_kiwi_enhanced_evaluation(
@@ -232,12 +232,12 @@ def main():
         )
         evaluation_results['Enhanced ROUGE (morphs)'] = enhanced_results
         execution_times['Enhanced ROUGE (morphs)'] = time.time() - start_time
-        print(f"   ✅ 완료 ({execution_times['Enhanced ROUGE (morphs)']:.2f}초)")
+        print(f"   ✅ Completed | 완료 ({execution_times['Enhanced ROUGE (morphs)']:.2f}초)")
     except Exception as e:
-        print(f"   ❌ 오류: {str(e)}")
+        print(f"   ❌ Error | 오류: {str(e)}")
     
     # Enhanced ROUGE (nouns)
-    print("🔬 Enhanced ROUGE (nouns) 평가...")
+    print("🔬 Enhanced ROUGE (nouns) Evaluation | Enhanced ROUGE (nouns) 평가...")
     start_time = time.time()
     try:
         enhanced_nouns_results = rouge_kiwi_enhanced_evaluation(
@@ -249,12 +249,12 @@ def main():
         )
         evaluation_results['Enhanced ROUGE (nouns)'] = enhanced_nouns_results
         execution_times['Enhanced ROUGE (nouns)'] = time.time() - start_time
-        print(f"   ✅ 완료 ({execution_times['Enhanced ROUGE (nouns)']:.2f}초)")
+        print(f"   ✅ Completed | 완료 ({execution_times['Enhanced ROUGE (nouns)']:.2f}초)")
     except Exception as e:
-        print(f"   ❌ 오류: {str(e)}")
+        print(f"   ❌ Error | 오류: {str(e)}")
     
     # ranx Similarity (Kiwi ROUGE)
-    print("📊 ranx Similarity (Kiwi ROUGE) 평가...")
+    print("📊 ranx Similarity (Kiwi ROUGE) Evaluation | ranx Similarity (Kiwi ROUGE) 평가...")
     start_time = time.time()
     try:
         ranx_results = evaluate_with_ranx_similarity(
@@ -267,12 +267,12 @@ def main():
         )
         evaluation_results['ranx Similarity (Kiwi ROUGE)'] = ranx_results
         execution_times['ranx Similarity (Kiwi ROUGE)'] = time.time() - start_time
-        print(f"   ✅ 완료 ({execution_times['ranx Similarity (Kiwi ROUGE)']:.2f}초)")
+        print(f"   ✅ Completed | 완료 ({execution_times['ranx Similarity (Kiwi ROUGE)']:.2f}초)")
     except Exception as e:
-        print(f"   ❌ 오류: {str(e)}")
+        print(f"   ❌ Error | 오류: {str(e)}")
     
-    # 2. 종합 비교 실행
-    print("\n2️⃣ 종합 비교 평가 실행")
+    # 2. Execute comprehensive comparison
+    print("\n2️⃣ Comprehensive Comparison Evaluation Execution | 종합 비교 평가 실행")
     print("-" * 30)
     
     start_time = time.time()
@@ -284,38 +284,38 @@ def main():
             k=5
         )
         comprehensive_time = time.time() - start_time
-        print(f"✅ 종합 비교 완료 ({comprehensive_time:.2f}초)")
+        print(f"✅ Comprehensive Comparison Completed | 종합 비교 완료 ({comprehensive_time:.2f}초)")
     except Exception as e:
-        print(f"❌ 종합 비교 오류: {str(e)}")
+        print(f"❌ Comprehensive Comparison Error | 종합 비교 오류: {str(e)}")
         comprehensive_results = evaluation_results
     
-    # 3. 결과 종합 분석
-    print("\n3️⃣ 결과 종합 분석")
+    # 3. Comprehensive result analysis
+    print("\n3️⃣ Comprehensive Result Analysis | 결과 종합 분석")
     print("=" * 40)
     
-    # 성능 비교 테이블
-    print("\n📊 성능 비교 테이블")
+    # Performance comparison table
+    print("\n📊 Performance Comparison Table | 성능 비교 테이블")
     print("-" * 80)
-    print(f"{'방법':<25} {'ROUGE-1':<10} {'ROUGE-2':<10} {'ROUGE-L':<10} {'실행시간(s)':<12}")
+    print(f"{'Method | 방법':<25} {'ROUGE-1':<10} {'ROUGE-2':<10} {'ROUGE-L':<10} {'Time(s) | 실행시간(s)':<12}")
     print("-" * 80)
     
     for method_name in evaluation_results.keys():
         results = evaluation_results[method_name]
         exec_time = execution_times.get(method_name, 0)
         
-        # ROUGE 점수 추출
+        # Extract ROUGE scores
         rouge1 = next((v for k, v in results.items() if 'rouge1' in k.lower()), 0.0)
         rouge2 = next((v for k, v in results.items() if 'rouge2' in k.lower()), 0.0)
         rougeL = next((v for k, v in results.items() if 'rougel' in k.lower()), 0.0)
         
         print(f"{method_name:<25} {rouge1:<10.3f} {rouge2:<10.3f} {rougeL:<10.3f} {exec_time:<12.2f}")
     
-    # ranx 메트릭 테이블
+    # ranx metrics table
     ranx_methods = [name for name in evaluation_results.keys() if 'ranx' in name.lower()]
     if ranx_methods:
-        print(f"\n📈 ranx 메트릭 비교")
+        print(f"\n📈 ranx Metrics Comparison | ranx 메트릭 비교")
         print("-" * 60)
-        print(f"{'방법':<25} {'Hit@5':<10} {'NDCG@5':<10} {'MRR':<10}")
+        print(f"{'Method | 방법':<25} {'Hit@5':<10} {'NDCG@5':<10} {'MRR':<10}")
         print("-" * 60)
         
         for method_name in ranx_methods:
@@ -326,15 +326,15 @@ def main():
             
             print(f"{method_name:<25} {hit_rate:<10.3f} {ndcg:<10.3f} {mrr:<10.3f}")
     
-    # 4. 상세 분석
-    print("\n4️⃣ 상세 성능 분석")
+    # 4. Detailed analysis
+    print("\n4️⃣ Detailed Performance Analysis | 상세 성능 분석")
     print("-" * 25)
     
     analysis = detailed_performance_analysis(evaluation_results)
     
-    # 최고 성능 방법 식별
+    # Identify best performance method
     if 'rouge_scores' in analysis and analysis['rouge_scores']:
-        print("\n🏆 ROUGE 성능 순위:")
+        print("\n🏆 ROUGE Performance Rankings | ROUGE 성능 순위:")
         rouge_rankings = []
         
         for method, scores in analysis['rouge_scores'].items():
@@ -345,18 +345,18 @@ def main():
         
         for i, (method, score) in enumerate(rouge_rankings, 1):
             emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "📊"
-            print(f"  {emoji} {i}위: {method:<25} ({score:.3f})")
+            print(f"  {emoji} {i}위 | Rank {i}: {method:<25} ({score:.3f})")
     
-    # 5. 권장사항 생성
-    print("\n5️⃣ 권장사항")
+    # 5. Generate recommendations
+    print("\n5️⃣ Recommendations | 권장사항")
     print("-" * 15)
     
     recommendations = generate_recommendations(analysis)
     for i, rec in enumerate(recommendations, 1):
         print(f"{i:2d}. {rec}")
     
-    # 6. 사용 사례별 권장 방법
-    print("\n6️⃣ 사용 사례별 권장 방법")
+    # 6. Use case-specific recommended methods
+    print("\n6️⃣ Recommended Methods by Use Case | 사용 사례별 권장 방법")
     print("-" * 30)
     
     use_cases = [
@@ -370,8 +370,8 @@ def main():
     for use_case, recommendation in use_cases:
         print(f"{use_case:<20} → {recommendation}")
     
-    # 7. 성능 최적화 팁
-    print("\n7️⃣ 성능 최적화 팁")
+    # 7. Performance optimization tips
+    print("\n7️⃣ Performance Optimization Tips | 성능 최적화 팁")
     print("-" * 20)
     
     optimization_tips = [
@@ -385,9 +385,9 @@ def main():
     for tip in optimization_tips:
         print(f"  {tip}")
     
-    print(f"\n✅ 종합 평가 비교 완료!")
-    print(f"📊 총 {len(evaluation_results)}개 방법으로 {len(questions)}개 질문 평가")
-    print(f"⏱️ 총 실행 시간: {sum(execution_times.values()):.2f}초")
+    print(f"\n✅ Comprehensive Evaluation Comparison Completed | 종합 평가 비교 완료!")
+    print(f"📊 Total {len(evaluation_results)} methods evaluated {len(questions)} questions | 총 {len(evaluation_results)}개 방법으로 {len(questions)}개 질문 평가")
+    print(f"⏱️ Total Execution Time | 총 실행 시간: {sum(execution_times.values()):.2f}초")
 
 if __name__ == "__main__":
     main()

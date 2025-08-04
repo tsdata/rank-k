@@ -1,6 +1,11 @@
 # 빠른 시작
 
+## 📋 Navigation
+- [← 설치](installation.md) | [메인](index.md) | [API 참조 →](api-reference.md)
+
 이 가이드는 ranx-k의 기본 사용법을 소개합니다.
+
+> **참고**: ranx-k는 국제적 접근성 향상을 위해 이중언어 출력 메시지(English | Korean)를 제공합니다. 자세한 내용은 [이중언어 출력 시스템](bilingual-output.md)을 참조하세요.
 
 ## 🚀 5분 만에 시작하기
 
@@ -51,6 +56,28 @@ tokenizer.remove_stopwords(['기술'])
 stopwords = tokenizer.get_stopwords()
 print(f"불용어 개수: {len(stopwords)}")
 ```
+
+## 🔗 검색기 호환성
+
+ranx-k는 `invoke()` 메서드를 구현하는 **LangChain 검색기 객체**와 함께 작동하도록 설계되었습니다:
+
+```python
+# 검색기는 다음을 구현해야 합니다:
+class YourRetriever:
+    def invoke(self, query: str) -> List[Document]:
+        # page_content 속성을 가진 Document 객체 리스트 반환
+        pass
+```
+
+**LangChain Document 형식:**
+```python
+from langchain.schema import Document
+
+# Document는 page_content 속성을 가져야 합니다
+doc = Document(page_content="텍스트 내용")
+```
+
+> **참고**: ranx-k는 LangChain의 검색기 인터페이스 표준을 따릅니다. LangChain은 MIT 라이선스로 배포됩니다.
 
 ## 📊 평가 함수 사용
 
@@ -116,10 +143,11 @@ print(f"MRR: {results['mrr']:.3f}")
 ### RAG 시스템 평가
 
 ```python
-import ranx_k
+from ranx_k.tokenizers import KiwiTokenizer
+from ranx_k.evaluation import comprehensive_evaluation_comparison
 
 # 1. 토크나이저 초기화
-tokenizer = ranx_k.KiwiTokenizer(method='morphs')
+tokenizer = KiwiTokenizer(method='morphs')
 
 # 2. 테스트 데이터 준비
 questions = [
@@ -135,8 +163,6 @@ reference_contexts = [
 ]
 
 # 3. 종합 평가 실행
-from ranx_k.evaluation import comprehensive_evaluation_comparison
-
 results = comprehensive_evaluation_comparison(
     retriever=your_retriever,
     questions=questions,
@@ -177,6 +203,7 @@ def cached_tokenize(text):
 
 ## 🎯 다음 단계
 
-- [평가 방법론](evaluation-methods.md)에서 더 자세한 평가 방법 학습
 - [API 레퍼런스](api-reference.md)에서 전체 함수 목록 확인
-- [예제](examples.md)에서 실제 사용 사례 학습
+- [GitHub 예제](https://github.com/tsdata/rank-k/tree/main/examples)에서 실제 사용 사례 학습
+- [설치 가이드](installation.md)에서 고급 설치 옵션 확인
+

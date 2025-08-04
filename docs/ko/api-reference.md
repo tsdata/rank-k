@@ -1,5 +1,8 @@
 # API 레퍼런스
 
+## 📋 Navigation
+- [← 빠른 시작](quickstart.md) | [메인](index.md) | [설치](installation.md)
+
 ranx-k의 모든 클래스와 함수에 대한 상세한 문서입니다.
 
 ## 🔤 토크나이저 (ranx_k.tokenizers)

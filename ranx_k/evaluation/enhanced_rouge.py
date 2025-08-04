@@ -67,7 +67,7 @@ def rouge_kiwi_enhanced_evaluation(retriever, questions: List[str],
             "rouge_score is required. Install with: pip install rouge-score"
         )
     
-    print(f"🚀 Rouge Score + Kiwi 토크나이저 평가 시작 (method: {tokenize_method})")
+    print(f"🚀 Starting Rouge Score + Kiwi Tokenizer Evaluation (method: {tokenize_method}) | Rouge Score + Kiwi 토크나이저 평가 시작")
     
     # Create Kiwi tokenizer
     kiwi_tokenizer = KiwiTokenizer(
@@ -86,7 +86,7 @@ def rouge_kiwi_enhanced_evaluation(retriever, questions: List[str],
     rougeL_scores = []
 
     for i, (question, ref_docs) in tqdm(enumerate(zip(questions, reference_contexts)), 
-                                       desc="Enhanced ROUGE 평가"):
+                                       desc="Enhanced ROUGE Evaluation | 향상된 ROUGE 평가"):
         # Retrieve documents
         retrieved_docs = retriever.invoke(question)[:k]
         retrieved_texts = [doc.page_content for doc in retrieved_docs]
@@ -124,7 +124,7 @@ def rouge_kiwi_enhanced_evaluation(retriever, questions: List[str],
         f'enhanced_rougeL@{k}': sum(rougeL_scores) / len(rougeL_scores),
     }
 
-    print("\n📊 향상된 ROUGE 평가 결과:")
+    print("\n📊 Enhanced ROUGE Evaluation Results | 향상된 ROUGE 평가 결과:")
     for metric, score in results.items():
         print(f"  {metric}: {score:.3f}")
     
@@ -166,19 +166,19 @@ def compare_tokenizers(retriever, questions: List[str],
             "rouge_score is required. Install with: pip install rouge-score"
         )
     
-    print("🔍 토크나이저 성능 비교")
+    print("🔍 Tokenizer Performance Comparison | 토크나이저 성능 비교")
     print("="*50)
     
     results = {}
     
     # 1. Default rouge_score tokenizer (English-based)
-    print("\n1️⃣ 기본 Rouge Score (영어 토크나이저)")
+    print("\n1️⃣ Basic Rouge Score (English Tokenizer) | 기본 Rouge Score (영어 토크나이저)")
     basic_scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'])
     
     basic_rouge1, basic_rouge2, basic_rougeL = [], [], []
     
     for question, ref_docs in tqdm(zip(questions, reference_contexts), 
-                                  desc="기본 토크나이저 평가"):
+                                  desc="Basic Tokenizer Evaluation | 기본 토크나이저 평가"):
         retrieved_docs = retriever.invoke(question)[:k]
         retrieved_texts = [doc.page_content for doc in retrieved_docs]
         
@@ -197,36 +197,36 @@ def compare_tokenizers(retriever, questions: List[str],
         f'basic_rougeL@{k}': sum(basic_rougeL) / len(basic_rougeL) if basic_rougeL else 0,
     }
     
-    print("📊 기본 토크나이저 결과:")
+    print("📊 Basic Tokenizer Results | 기본 토크나이저 결과:")
     for metric, score in results['basic'].items():
         print(f"  {metric}: {score:.3f}")
     
     # 2. Kiwi morpheme tokenizer
-    print("\n2️⃣ Kiwi 형태소 토크나이저")
+    print("\n2️⃣ Kiwi Morpheme Tokenizer | Kiwi 형태소 토크나이저")
     results['kiwi_morphs'] = rouge_kiwi_enhanced_evaluation(
         retriever, questions, reference_contexts, k, 
         tokenize_method='morphs', use_stopwords=True
     )
     
     # 3. Kiwi noun tokenizer
-    print("\n3️⃣ Kiwi 명사 토크나이저")
+    print("\n3️⃣ Kiwi Noun Tokenizer | Kiwi 명사 토크나이저")
     results['kiwi_nouns'] = rouge_kiwi_enhanced_evaluation(
         retriever, questions, reference_contexts, k, 
         tokenize_method='nouns', use_stopwords=True
     )
     
     # 4. Performance comparison summary
-    print("\n🏆 토크나이저 성능 비교 결과:")
+    print("\n🏆 Tokenizer Performance Comparison Results | 토크나이저 성능 비교 결과:")
     print("="*50)
     
     methods = {
-        '기본 토크나이저': results['basic'],
-        'Kiwi 형태소': results['kiwi_morphs'],
-        'Kiwi 명사': results['kiwi_nouns']
+        'Basic Tokenizer | 기본 토크나이저': results['basic'],
+        'Kiwi Morphs | Kiwi 형태소': results['kiwi_morphs'],
+        'Kiwi Nouns | Kiwi 명사': results['kiwi_nouns']
     }
     
     for rouge_type in ['rouge1', 'rouge2', 'rougeL']:
-        print(f"\n🎯 {rouge_type.upper()} 비교:")
+        print(f"\n🎯 {rouge_type.upper()} Comparison | {rouge_type.upper()} 비교:")
         best_score = 0
         best_method = ""
         

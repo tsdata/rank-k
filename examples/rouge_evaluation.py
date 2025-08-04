@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ranx-k ROUGE 평가 예제
+ranx-k ROUGE Evaluation Example
 
 이 예제는 다양한 ROUGE 평가 방법을 보여줍니다.
 """
@@ -9,10 +9,10 @@ from ranx_k.evaluation import simple_kiwi_rouge_evaluation, rouge_kiwi_enhanced_
 import time
 
 class MockRetriever:
-    """예제용 가상 검색기"""
+    """Example virtual retriever"""
     
     def __init__(self):
-        # 가상의 문서 컬렉션
+        # Virtual document collection
         self.documents = [
             "자연어처리는 컴퓨터가 인간의 언어를 이해하고 처리하는 인공지능 기술입니다.",
             "RAG 시스템은 검색 증강 생성으로 문서 검색과 텍스트 생성을 결합합니다.",
@@ -43,12 +43,12 @@ class MockRetriever:
             if overlap > 0:
                 scored_docs.append((overlap, Document(doc)))
         
-        # 점수 순으로 정렬하고 Document 객체만 반환
+        # Sort by score하고 Document 객체만 반환
         scored_docs.sort(key=lambda x: x[0], reverse=True)
         return [doc for score, doc in scored_docs]
 
 def main():
-    print("📊 ranx-k ROUGE 평가 예제")
+    print("📊 ranx-k ROUGE Evaluation Example | ranx-k ROUGE 평가 예제")
     print("=" * 50)
     
     # 검색기 초기화
@@ -63,7 +63,7 @@ def main():
         "Kiwi 라이브러리의 특징은?"
     ]
     
-    # 각 질문에 대한 정답 문서들
+    # Correct documents for each question
     reference_contexts = [
         ["자연어처리는 컴퓨터가 인간의 언어를 이해하고 처리하는 인공지능 기술입니다."],
         ["RAG 시스템은 검색 증강 생성으로 문서 검색과 텍스트 생성을 결합합니다."],
@@ -72,11 +72,11 @@ def main():
         ["Kiwi는 한국어 형태소 분석에 특화된 오픈소스 라이브러리입니다."]
     ]
     
-    print(f"📋 평가 데이터: {len(questions)}개 질문")
-    print(f"📚 문서 컬렉션: {len(retriever.documents)}개 문서")
+    print(f"📋 Evaluation Data | 평가 데이터: {len(questions)}개 질문")
+    print(f"📚 Document Collection | 문서 컬렉션: {len(retriever.documents)}개 문서")
     
-    # 1. 간단한 Kiwi ROUGE 평가
-    print("\n1️⃣ 간단한 Kiwi ROUGE 평가")
+    # 1. Simple Kiwi ROUGE evaluation
+    print("\n1️⃣ Simple Kiwi ROUGE Evaluation | 간단한 Kiwi ROUGE 평가")
     print("-" * 30)
     
     start_time = time.time()
@@ -88,10 +88,10 @@ def main():
     )
     simple_time = time.time() - start_time
     
-    print(f"⏱️ 처리 시간: {simple_time:.2f}초")
+    print(f"⏱️ Processing Time | 처리 시간: {simple_time:.2f}초")
     
-    # 2. 향상된 ROUGE 평가 (morphs)
-    print("\n2️⃣ 향상된 ROUGE 평가 (morphs)")
+    # 2. Enhanced ROUGE evaluation (morphs)
+    print("\n2️⃣ Enhanced ROUGE Evaluation (morphs) | 향상된 ROUGE 평가 (morphs)")
     print("-" * 30)
     
     start_time = time.time()
@@ -107,8 +107,8 @@ def main():
     
     print(f"⏱️ 처리 시간: {enhanced_morphs_time:.2f}초")
     
-    # 3. 향상된 ROUGE 평가 (nouns)
-    print("\n3️⃣ 향상된 ROUGE 평가 (nouns)")
+    # 3. Enhanced ROUGE evaluation (nouns)
+    print("\n3️⃣ Enhanced ROUGE Evaluation (nouns) | 향상된 ROUGE 평가 (nouns)")
     print("-" * 30)
     
     start_time = time.time()
@@ -122,10 +122,10 @@ def main():
     )
     enhanced_nouns_time = time.time() - start_time
     
-    print(f"⏱️ 처리 시간: {enhanced_nouns_time:.2f}초")
+    print(f"⏱️ Processing Time | 처리 시간: {enhanced_nouns_time:.2f}초")
     
     # 4. 결과 비교
-    print("\n📊 결과 비교")
+    print("\n📊 Results Comparison | 결과 비교")
     print("=" * 50)
     
     methods = [
@@ -134,7 +134,7 @@ def main():
         ("Enhanced ROUGE (nouns)", enhanced_nouns_results, enhanced_nouns_time)
     ]
     
-    print(f"{'방법':<25} {'ROUGE-1':<10} {'ROUGE-2':<10} {'ROUGE-L':<10} {'시간(s)':<8}")
+    print(f"{'Method | 방법':<25} {'ROUGE-1':<10} {'ROUGE-2':<10} {'ROUGE-L':<10} {'Time(s) | 시간(s)':<8}")
     print("-" * 70)
     
     for method_name, results, exec_time in methods:
@@ -146,24 +146,24 @@ def main():
         print(f"{method_name:<25} {rouge1:<10.3f} {rouge2:<10.3f} {rougeL:<10.3f} {exec_time:<8.2f}")
     
     # 5. 질문별 상세 분석
-    print("\n🔍 질문별 검색 결과 분석")
+    print("\n🔍 Question-wise Search Result Analysis | 질문별 검색 결과 분석")
     print("=" * 50)
     
     for i, question in enumerate(questions[:3]):  # 처음 3개 질문만
-        print(f"\n질문 {i+1}: {question}")
+        print(f"\nQuestion | 질문 {i+1}: {question}")
         retrieved_docs = retriever.invoke(question)[:3]  # 상위 3개
         reference = reference_contexts[i][0]
         
-        print(f"정답: {reference}")
-        print("검색 결과:")
+        print(f"Answer | 정답: {reference}")
+        print("Search Results | 검색 결과:")
         for j, doc in enumerate(retrieved_docs, 1):
             print(f"  {j}. {doc.page_content}")
     
     # 6. 성능 최적화 팁 시연
-    print("\n⚡ 성능 최적화 팁")
+    print("\n⚡ Performance Optimization Tips | 성능 최적화 팁")
     print("=" * 30)
     
-    # 배치 크기별 성능 비교
+    # 배치 크기별 Performance comparison
     batch_sizes = [1, 3, 5]
     
     for batch_size in batch_sizes:
@@ -183,12 +183,12 @@ def main():
                 )
         
         batch_time = time.time() - start_time
-        print(f"배치 크기 {batch_size}: {batch_time:.2f}초")
+        print(f"Batch Size | 배치 크기 {batch_size}: {batch_time:.2f}초")
     
-    print("\n✅ ROUGE 평가 예제 완료!")
-    print("\n💡 다음 단계:")
-    print("- ranx_evaluation.py: ranx 메트릭 평가")
-    print("- comprehensive_comparison.py: 종합 비교")
+    print("\n✅ ROUGE Evaluation Example Completed | ROUGE 평가 예제 완료!")
+    print("\n💡 Next Steps | 다음 단계:")
+    print("- ranx_evaluation.py: ranx metric evaluation | ranx 메트릭 평가")
+    print("- comprehensive_comparison.py: comprehensive comparison | 종합 비교")
 
 if __name__ == "__main__":
     main()

@@ -163,7 +163,7 @@ def simple_kiwi_rouge_evaluation(retriever, questions: List[str],
         f'kiwi_rougeL@{k}': np.mean(rougeL_scores)
     }
     
-    print("\n📊 Kiwi ROUGE 평가 결과:")
+    print("\n📊 Kiwi ROUGE Evaluation Results | Kiwi ROUGE 평가 결과:")
     for metric, score in results.items():
         print(f"  {metric}: {score:.3f}")
     

@@ -1,5 +1,8 @@
 # 설치 가이드
 
+## 📋 Navigation
+- [← 메인](index.md) | [빠른 시작 →](quickstart.md) | [API 참조](api-reference.md)
+
 ## 📦 PyPI에서 설치
 
 ```bash

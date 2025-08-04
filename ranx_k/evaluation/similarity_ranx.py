@@ -188,8 +188,8 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         return results
         
     except Exception as e:
-        print(f"❌ ranx 평가 중 오류: {e}")
-        print("💡 qrels나 run이 비어있을 가능성이 있습니다. 임계값을 낮춰보세요.")
+        print(f"❌ Error during ranx evaluation | ranx 평가 중 오류: {e}")
+        print("💡 qrels or run may be empty. Try lowering the threshold | qrels나 run이 비어있을 가능성이 있습니다. 임계값을 낮춰보세요.")
         return {}
 
 
@@ -390,7 +390,7 @@ def compare_ranx_methods(retriever, questions: List[str],
         ... )
         >>> print("Method comparison completed!")
     """
-    print("🔍 ranx 유사도 방법 비교 평가")
+    print("🔍 ranx Similarity Method Comparison Evaluation | ranx 유사도 방법 비교 평가")
     print("="*60)
     
     methods = {
@@ -402,7 +402,7 @@ def compare_ranx_methods(retriever, questions: List[str],
     all_results = {}
     
     for method_key, method_name in methods.items():
-        print(f"\n🚀 {method_name} 평가 중...")
+        print(f"\n🚀 Evaluating {method_name} | {method_name} 평가 중...")
         
         try:
             results = evaluate_with_ranx_similarity(
@@ -413,14 +413,14 @@ def compare_ranx_methods(retriever, questions: List[str],
             if results:
                 all_results[method_name] = results
             else:
-                print(f"❌ {method_name} 평가 실패")
+                print(f"❌ {method_name} Evaluation Failed | {method_name} 평가 실패")
                 
         except Exception as e:
-            print(f"❌ {method_name} 평가 중 오류: {e}")
+            print(f"❌ Error during {method_name} evaluation | {method_name} 평가 중 오류: {e}")
     
     # Results comparison
     if all_results:
-        print("\n🏆 ranx 방법별 성능 비교:")
+        print("\n🏆 ranx Method Performance Comparison | ranx 방법별 성능 비교:")
         print("="*60)
         
         for metric in ['hit_rate@5', 'ndcg@5', 'map@5', 'mrr']:

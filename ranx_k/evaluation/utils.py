@@ -45,13 +45,13 @@ def comprehensive_evaluation_comparison(retriever, questions: List[str],
         >>> for method, results in comparison.items():
         ...     print(f"{method}: {results}")
     """
-    print("🚀 RAG 평가 방법 종합 비교\n")
+    print("🚀 RAG Evaluation Methods Comprehensive Comparison | RAG 평가 방법 종합 비교\n")
     print("="*60)
     
     all_results = {}
     
     # 1. Kiwi ROUGE evaluation
-    print("\n1️⃣ Kiwi ROUGE 평가")
+    print("\n1️⃣ Kiwi ROUGE Evaluation | Kiwi ROUGE 평가")
     print("-" * 30)
     try:
         kiwi_rouge_results = simple_kiwi_rouge_evaluation(
@@ -59,11 +59,11 @@ def comprehensive_evaluation_comparison(retriever, questions: List[str],
         )
         all_results['Kiwi ROUGE'] = kiwi_rouge_results
     except Exception as e:
-        print(f"❌ Kiwi ROUGE 평가 실패: {e}")
+        print(f"❌ Kiwi ROUGE Evaluation Failed | Kiwi ROUGE 평가 실패: {e}")
         all_results['Kiwi ROUGE'] = {}
     
     # 2. Enhanced ROUGE evaluation
-    print("\n2️⃣ 향상된 ROUGE 평가")
+    print("\n2️⃣ Enhanced ROUGE Evaluation | 향상된 ROUGE 평가")
     print("-" * 30)
     try:
         enhanced_rouge_results = rouge_kiwi_enhanced_evaluation(
@@ -71,11 +71,11 @@ def comprehensive_evaluation_comparison(retriever, questions: List[str],
         )
         all_results['Enhanced ROUGE'] = enhanced_rouge_results
     except Exception as e:
-        print(f"❌ Enhanced ROUGE 평가 실패: {e}")
+        print(f"❌ Enhanced ROUGE Evaluation Failed | Enhanced ROUGE 평가 실패: {e}")
         all_results['Enhanced ROUGE'] = {}
     
     # 3. Similarity-based ranx evaluation
-    print("\n3️⃣ 유사도 기반 ranx 평가")
+    print("\n3️⃣ Similarity-based ranx Evaluation | 유사도 기반 ranx 평가")
     print("-" * 30)
     try:
         ranx_results = evaluate_with_ranx_similarity(
@@ -85,14 +85,14 @@ def comprehensive_evaluation_comparison(retriever, questions: List[str],
         if ranx_results:
             all_results['Similarity ranx'] = ranx_results
         else:
-            print("❌ ranx 평가에서 유효한 결과를 얻지 못했습니다.")
+            print("❌ No valid results obtained from ranx evaluation | ranx 평가에서 유효한 결과를 얻지 못했습니다.")
             all_results['Similarity ranx'] = {}
     except Exception as e:
-        print(f"❌ Similarity ranx 평가 실패: {e}")
+        print(f"❌ Similarity ranx Evaluation Failed | Similarity ranx 평가 실패: {e}")
         all_results['Similarity ranx'] = {}
     
     # Results comparison
-    print("\n🏆 종합 성능 비교")
+    print("\n🏆 Comprehensive Performance Comparison | 종합 성능 비교")
     print("="*60)
     
     _print_comparison_table(all_results, k)
@@ -109,7 +109,7 @@ def _print_comparison_table(all_results: Dict[str, Dict[str, float]], k: int) ->
         k: Number of top documents evaluated.
     """
     if not all_results:
-        print("❌ 비교할 결과가 없습니다.")
+        print("❌ No results to compare | 비교할 결과가 없습니다.")
         return
     
     # Prepare comparison data
@@ -160,10 +160,10 @@ def _print_comparison_table(all_results: Dict[str, Dict[str, float]], k: int) ->
             print(data_line)
     
     # Print recommendations
-    print(f"\n💡 추천 사용 시나리오:")
-    print("• Kiwi ROUGE: 빠른 프로토타이핑 및 개발 중 피드백")
-    print("• Enhanced ROUGE: 안정적인 프로덕션 환경 평가")
-    print("• Similarity ranx: 정밀한 연구 및 벤치마킹")
+    print(f"\n💡 Recommended Usage Scenarios | 추천 사용 시나리오:")
+    print("• Kiwi ROUGE: Fast prototyping and development feedback | 빠른 프로토타이핑 및 개발 중 피드백")
+    print("• Enhanced ROUGE: Stable production environment evaluation | 안정적인 프로덕션 환경 평가")
+    print("• Similarity ranx: Precise research and benchmarking | 정밀한 연구 및 벤치마킹")
 
 
 def interpret_scores(results: Dict[str, float]) -> Dict[str, str]:
@@ -188,19 +188,19 @@ def interpret_scores(results: Dict[str, float]) -> Dict[str, str]:
     for metric, score in results.items():
         if isinstance(score, (int, float)):
             if score >= 0.7:
-                level = "🟢 매우 좋음"
-                action = "현재 설정을 유지하세요"
+                level = "🟢 Excellent"
+                action = "Maintain current settings"
             elif score >= 0.5:
-                level = "🟡 양호"
-                action = "미세 조정을 고려해보세요"
+                level = "🟡 Good"
+                action = "Consider minor adjustments"
             elif score >= 0.3:
-                level = "🟠 보통"
-                action = "개선이 필요합니다"
+                level = "🟠 Average"
+                action = "Improvement needed"
             else:
-                level = "🔴 낮음"
-                action = "시스템을 재검토해야 합니다"
+                level = "🔴 Low"
+                action = "System review required"
             
-            interpretations[metric] = f"{level} (점수: {score:.3f}) - {action}"
+            interpretations[metric] = f"{level} (Score: {score:.3f}) - {action}"
     
     return interpretations
 
