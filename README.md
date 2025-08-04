@@ -4,56 +4,58 @@
 [![Python version](https://img.shields.io/pypi/pyversions/ranx-k.svg)](https://pypi.org/project/ranx-k/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**ranx-k**는 한국어에 최적화된 정보 검색(IR) 평가 도구로, 기존 ranx 라이브러리를 확장하여 Kiwi 토크나이저와 한국어 임베딩을 지원합니다. RAG(Retrieval-Augmented Generation) 시스템의 성능을 정확하게 평가할 수 있습니다.
+**[English](README.md) | [한국어](README.ko.md)**
 
-## 🚀 주요 특징
+**ranx-k** is a Korean-optimized Information Retrieval (IR) evaluation toolkit that extends the ranx library with Kiwi tokenizer and Korean embeddings. It provides accurate evaluation for RAG (Retrieval-Augmented Generation) systems.
 
-- **한국어 특화**: Kiwi 형태소 분석기를 활용한 정확한 토큰화
-- **ranx 기반**: 검증된 IR 평가 메트릭 (Hit@K, NDCG@K, MRR 등) 지원
-- **LangChain 호환**: LangChain 검색기 인터페이스 표준 지원
-- **다양한 평가 방법**: ROUGE, 임베딩 유사도, 의미적 유사도 기반 평가
-- **실용적 설계**: 프로토타입부터 프로덕션까지 단계별 평가 지원
-- **높은 성능**: 기존 방법 대비 30~80% 한국어 평가 정확도 향상
-- **이중언어 출력**: 국제적 접근성을 위한 영어-한국어 병기 출력 지원
+## 🚀 Key Features
 
-## 📦 설치
+- **Korean-optimized**: Accurate tokenization using Kiwi morphological analyzer
+- **ranx-based**: Supports proven IR evaluation metrics (Hit@K, NDCG@K, MRR, etc.)
+- **LangChain compatible**: Supports LangChain retriever interface standards
+- **Multiple evaluation methods**: ROUGE, embedding similarity, semantic similarity-based evaluation
+- **Practical design**: Supports step-by-step evaluation from prototype to production
+- **High performance**: 30-80% improvement in Korean evaluation accuracy over existing methods
+- **Bilingual output**: English-Korean output support for international accessibility
+
+## 📦 Installation
 
 ```bash
 pip install ranx-k
 ```
 
-또는 개발 버전 설치:
+Or install development version:
 
 ```bash
 pip install "ranx-k[dev]"
 ```
 
-## 🔗 검색기 호환성
+## 🔗 Retriever Compatibility
 
-ranx-k는 **LangChain 검색기 인터페이스**를 지원합니다:
+ranx-k supports **LangChain retriever interface**:
 
 ```python
-# 검색기는 invoke() 메서드를 구현해야 합니다
+# Retriever must implement invoke() method
 class YourRetriever:
     def invoke(self, query: str) -> List[Document]:
-        # Document 객체 리스트 반환 (page_content 속성 필요)
+        # Return list of Document objects (requires page_content attribute)
         pass
 
-# LangChain Document 사용 예시
+# LangChain Document usage example
 from langchain.schema import Document
-doc = Document(page_content="텍스트 내용")
+doc = Document(page_content="Text content")
 ```
 
-> **참고**: LangChain은 MIT 라이선스 하에 배포됩니다. 자세한 내용은 [문서](docs/en/quickstart.md#langchain-license)를 참조하세요.
+> **Note**: LangChain is distributed under the MIT License. See [documentation](docs/en/quickstart.md#langchain-license) for details.
 
-## 🔧 빠른 시작
+## 🔧 Quick Start
 
-### 기본 사용법
+### Basic Usage
 
 ```python
 from ranx_k.evaluation import simple_kiwi_rouge_evaluation
 
-# 간단한 Kiwi ROUGE 평가
+# Simple Kiwi ROUGE evaluation
 results = simple_kiwi_rouge_evaluation(
     retriever=your_retriever,
     questions=your_questions,
@@ -66,34 +68,34 @@ print(f"ROUGE-2: {results['kiwi_rouge2@5']:.3f}")
 print(f"ROUGE-L: {results['kiwi_rougeL@5']:.3f}")
 ```
 
-### 향상된 평가 (Rouge Score + Kiwi)
+### Enhanced Evaluation (Rouge Score + Kiwi)
 
 ```python
 from ranx_k.evaluation import rouge_kiwi_enhanced_evaluation
 
-# 검증된 rouge_score 라이브러리 + Kiwi 토크나이저
+# Proven rouge_score library + Kiwi tokenizer
 results = rouge_kiwi_enhanced_evaluation(
     retriever=your_retriever,
     questions=your_questions,
     reference_contexts=your_reference_contexts,
     k=5,
-    tokenize_method='morphs',  # 'morphs' 또는 'nouns'
+    tokenize_method='morphs',  # 'morphs' or 'nouns'
     use_stopwords=True
 )
 ```
 
-### 의미적 유사도 기반 ranx 평가
+### Semantic Similarity-based ranx Evaluation
 
 ```python
 from ranx_k.evaluation import evaluate_with_ranx_similarity
 
-# 의미적 유사도를 ranx 형식으로 변환
+# Basic embedding model usage
 results = evaluate_with_ranx_similarity(
     retriever=your_retriever,
     questions=your_questions,
     reference_contexts=your_reference_contexts,
     k=5,
-    method='kiwi_rouge',  # 'embedding', 'kiwi_rouge'
+    method='embedding',
     similarity_threshold=0.6
 )
 
@@ -102,12 +104,48 @@ print(f"NDCG@5: {results['ndcg@5']:.3f}")
 print(f"MRR: {results['mrr']:.3f}")
 ```
 
-### 종합 평가
+#### Using Different Embedding Models
+
+```python
+# OpenAI embedding model (requires API key)
+results = evaluate_with_ranx_similarity(
+    retriever=your_retriever,
+    questions=your_questions,
+    reference_contexts=your_reference_contexts,
+    k=5,
+    method='openai',
+    similarity_threshold=0.7,
+    embedding_model="text-embedding-3-small"
+)
+
+# Latest BGE-M3 model (excellent for Korean)
+results = evaluate_with_ranx_similarity(
+    retriever=your_retriever,
+    questions=your_questions,
+    reference_contexts=your_reference_contexts,
+    k=5,
+    method='embedding',
+    similarity_threshold=0.6,
+    embedding_model="BAAI/bge-m3"
+)
+
+# Korean-specialized Kiwi ROUGE method
+results = evaluate_with_ranx_similarity(
+    retriever=your_retriever,
+    questions=your_questions,
+    reference_contexts=your_reference_contexts,
+    k=5,
+    method='kiwi_rouge',
+    similarity_threshold=0.3  # Lower threshold recommended for Kiwi ROUGE
+)
+```
+
+### Comprehensive Evaluation
 
 ```python
 from ranx_k.evaluation import comprehensive_evaluation_comparison
 
-# 모든 평가 방법 비교
+# Compare all evaluation methods
 comparison = comprehensive_evaluation_comparison(
     retriever=your_retriever,
     questions=your_questions,
@@ -116,78 +154,112 @@ comparison = comprehensive_evaluation_comparison(
 )
 ```
 
-## 📊 평가 방법
+## 📊 Evaluation Methods
 
-### 1. Kiwi ROUGE 평가
-- **장점**: 빠른 속도, 직관적 해석
-- **용도**: 프로토타이핑, 빠른 피드백
+### 1. Kiwi ROUGE Evaluation
+- **Advantages**: Fast speed, intuitive interpretation
+- **Use case**: Prototyping, quick feedback
 
 ### 2. Enhanced ROUGE (Rouge Score + Kiwi)
-- **장점**: 검증된 라이브러리, 안정성
-- **용도**: 프로덕션 환경, 신뢰성 중요한 평가
+- **Advantages**: Proven library, stability
+- **Use case**: Production environment, reliability-critical evaluation
 
-### 3. 의미적 유사도 기반 ranx
-- **장점**: 전통적 IR 메트릭, 의미적 유사도
-- **용도**: 연구, 벤치마킹, 상세 분석
+### 3. Semantic Similarity-based ranx
+- **Advantages**: Traditional IR metrics, semantic similarity
+- **Use case**: Research, benchmarking, detailed analysis
 
-## 🎯 성능 개선 사례
+## 🎯 Performance Improvement Examples
 
 ```python
-# 기존 방법 (영어 토크나이저)
+# Existing method (English tokenizer)
 basic_rouge1 = 0.234
 
-# ranx-k (Kiwi 토크나이저)
-ranxk_rouge1 = 0.421  # +79.9% 향상!
+# ranx-k (Kiwi tokenizer)
+ranxk_rouge1 = 0.421  # +79.9% improvement!
 ```
 
-## 📈 점수 해석 가이드
+## 📊 Recommended Embedding Models
 
-| 점수 범위 | 평가 | 권장 조치 |
-|-----------|------|-----------|
-| 0.7 이상 | 🟢 매우 좋음 | 현재 설정 유지 |
-| 0.5~0.7 | 🟡 양호 | 미세 조정 고려 |
-| 0.3~0.5 | 🟠 보통 | 개선 필요 |
-| 0.3 미만 | 🔴 낮음 | 시스템 재검토 |
+| Model | Use Case | Threshold | Features |
+|-------|----------|-----------|----------|
+| `paraphrase-multilingual-MiniLM-L12-v2` | Default | 0.6 | Fast, lightweight |
+| `text-embedding-3-small` (OpenAI) | Accuracy | 0.7 | High accuracy, cost-effective |
+| `BAAI/bge-m3` | Korean | 0.6 | Latest, excellent multilingual |
+| `text-embedding-3-large` (OpenAI) | Premium | 0.8 | Highest performance |
 
-## 📚 문서화
+## 📈 Score Interpretation Guide
 
-자세한 사용법과 예제는 [GitHub 문서](https://github.com/tsdata/rank-k/tree/main/docs)를 참조하세요.
+| Score Range | Assessment | Recommended Action |
+|-------------|------------|-------------------|
+| 0.7+ | 🟢 Excellent | Maintain current settings |
+| 0.5~0.7 | 🟡 Good | Consider fine-tuning |
+| 0.3~0.5 | 🟠 Average | Improvement needed |
+| 0.3- | 🔴 Poor | Major revision required |
 
-## 🤝 기여하기
+## 🔍 Advanced Usage
 
-ranx-k는 오픈소스 프로젝트입니다. 기여를 환영합니다!
+### Custom Embedding Models
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```python
+# Use custom embedding model
+results = evaluate_with_ranx_similarity(
+    retriever=your_retriever,
+    questions=questions,
+    reference_contexts=references,
+    method='embedding',
+    embedding_model="your-custom-model-name",
+    similarity_threshold=0.6
+)
+```
 
-## 📄 라이선스
+### Batch Evaluation with Different Thresholds
 
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
+```python
+thresholds = [0.3, 0.5, 0.7]
+for threshold in thresholds:
+    results = evaluate_with_ranx_similarity(
+        retriever=your_retriever,
+        questions=questions,
+        reference_contexts=references,
+        similarity_threshold=threshold
+    )
+    print(f"Threshold {threshold}: Hit@5 = {results['hit_rate@5']:.3f}")
+```
 
-### 라이선스 및 저작권
+## 📚 Examples
 
-이 프로젝트는 다음 오픈소스 라이브러리들을 기반으로 개발되었습니다:
+- [Basic Tokenizer Example](examples/basic_tokenizer.py)
+- [BGE-M3 Evaluation Example](examples/bge_m3_evaluation.py)
+- [Embedding Models Comparison](examples/embedding_models_comparison.py)
+- [Comprehensive Comparison](examples/comprehensive_comparison.py)
 
-- **rouge_score**: Copyright (c) 2022 The rouge_score Authors (Apache License 2.0)
-- **ranx**: Copyright (c) 2021 Elias Bassani (MIT License)  
-- **kiwipiepy**: Copyright (c) 2021 bab2min (LGPL v3.0)
-- **수정 및 확장**: Copyright (c) 2025 Pandas Studio (MIT License)
+## 📖 Documentation
 
-## 🙏 감사의 말
+- [Installation Guide](docs/en/installation.md)
+- [Quick Start Guide](docs/en/quickstart.md)
+- [API Reference](docs/en/api-reference.md)
+- [Korean Documentation](docs/ko/)
 
-- **ranx**: 뛰어난 IR 평가 라이브러리를 제공해주신 [Elias Bassani](https://github.com/AmenRa)님
-- **Kiwi**: 뛰어난 한국어 형태소 분석기를 제공해주신 [bab2min](https://github.com/bab2min)님
-- **rouge_score**: Google Research팀의 ROUGE 구현
+## 🤝 Contributing
 
-## 📞 지원
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
 
-- 🐛 버그 리포트: [GitHub Issues](https://github.com/tsdata/rank-k/issues)
-- 💬 질문 및 토론: [GitHub Issues](https://github.com/tsdata/rank-k/issues)
-- 📧 이메일: ontofinance@gmail.com
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built on top of [ranx](https://github.com/AmenRa/ranx) by Elias Bassani
+- Korean morphological analysis powered by [Kiwi](https://github.com/bab2min/kiwipiepy)
+- Embedding support via [sentence-transformers](https://github.com/UKPLab/sentence-transformers)
+
+## 📞 Support
+
+- 🐛 [Issue Tracker](https://github.com/tsdata/ranx-k/issues)
+- 📧 Email: ontofinance@gmail.com
+- 📖 [Documentation](docs/en/)
 
 ---
 
-**ranx-k와 함께 더 정확한 한국어 IR 평가를 경험해보세요!** 🚀🇰🇷
+**ranx-k** - Empowering Korean RAG evaluation with precision and ease!

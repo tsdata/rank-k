@@ -39,12 +39,20 @@ try:
 except ImportError:
     KIWI_AVAILABLE = False
 
+try:
+    import openai
+    from .openai_similarity import OpenAISimilarityCalculator
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
 
 def evaluate_with_ranx_similarity(retriever, questions: List[str], 
                                  reference_contexts: List[List[str]], 
                                  k: int = 5,
                                  method: str = 'embedding', 
-                                 similarity_threshold: float = 0.7) -> Dict[str, float]:
+                                 similarity_threshold: float = 0.7,
+                                 embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2") -> Dict[str, float]:
     """
     Evaluate RAG system using ranx with semantic similarity matching.
     
@@ -57,8 +65,9 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         questions: List of questions to evaluate.
         reference_contexts: List of reference document lists for each question.
         k: Number of top retrieved documents to evaluate.
-        method: Similarity calculation method ('embedding', 'rouge', 'kiwi_rouge').
+        method: Similarity calculation method ('embedding', 'rouge', 'kiwi_rouge', 'openai').
         similarity_threshold: Minimum similarity score to consider relevant (0.0-1.0).
+        embedding_model: Sentence transformer model name for embedding method.
         
     Returns:
         Dictionary containing ranx evaluation metrics:
@@ -67,17 +76,57 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         - map@k: Mean Average Precision at k  
         - mrr: Mean Reciprocal Rank
         
-    Example:
-        >>> from krag.evaluation import evaluate_with_ranx_similarity
+    Examples:
+        Basic usage with default embedding model:
+        >>> from ranx_k.evaluation import evaluate_with_ranx_similarity
         >>> results = evaluate_with_ranx_similarity(
         ...     retriever=my_retriever,
         ...     questions=["RAG 시스템이란?"],
         ...     reference_contexts=[["RAG는 검색 증강 생성..."]], 
         ...     k=5,
-        ...     method='kiwi_rouge',
+        ...     method='embedding',
         ...     similarity_threshold=0.6
         ... )
         >>> print(f"Hit@5: {results['hit_rate@5']:.3f}")
+        
+        Using different embedding models:
+        >>> # More accurate multilingual model
+        >>> results = evaluate_with_ranx_similarity(
+        ...     retriever=my_retriever,
+        ...     questions=questions,
+        ...     reference_contexts=references,
+        ...     method='embedding',
+        ...     similarity_threshold=0.7,
+        ...     embedding_model="sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+        ... )
+        
+        >>> # Latest BGE-M3 model
+        >>> results = evaluate_with_ranx_similarity(
+        ...     retriever=my_retriever,
+        ...     questions=questions,
+        ...     reference_contexts=references,
+        ...     method='embedding',
+        ...     embedding_model="BAAI/bge-m3"
+        ... )
+        
+        Using Korean-optimized Kiwi ROUGE:
+        >>> results = evaluate_with_ranx_similarity(
+        ...     retriever=my_retriever,
+        ...     questions=questions,
+        ...     reference_contexts=references,
+        ...     method='kiwi_rouge',
+        ...     similarity_threshold=0.3  # Lower threshold for Kiwi ROUGE
+        ... )
+        
+        Using OpenAI Embeddings:
+        >>> results = evaluate_with_ranx_similarity(
+        ...     retriever=my_retriever,
+        ...     questions=questions,
+        ...     reference_contexts=references,
+        ...     method='openai',
+        ...     similarity_threshold=0.7,
+        ...     embedding_model="text-embedding-3-small"  # OpenAI model name
+        ... )
         
     Raises:
         ImportError: If required dependencies are not installed.
@@ -96,7 +145,7 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
                 "sentence-transformers and scikit-learn required for embedding method. "
                 "Install with: pip install sentence-transformers scikit-learn"
             )
-        similarity_calculator = EmbeddingSimilarityCalculator()
+        similarity_calculator = EmbeddingSimilarityCalculator(model_name=embedding_model)
     elif method == 'rouge':
         if not ROUGE_AVAILABLE:
             raise ImportError(
@@ -109,6 +158,12 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
                 "kiwipiepy required for kiwi_rouge method. Install with: pip install kiwipiepy"
             )
         similarity_calculator = KiwiRougeSimilarityCalculator()
+    elif method == 'openai':
+        if not OPENAI_AVAILABLE:
+            raise ImportError(
+                "openai required for openai method. Install with: pip install openai"
+            )
+        similarity_calculator = OpenAISimilarityCalculator(model_name=embedding_model)
     else:
         raise ValueError(f"Unsupported similarity method: {method}")
     
