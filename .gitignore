@@ -134,6 +134,3 @@ dmypy.json
 
 # pytype static type analyzer
 .pytype/
-
-# Claude Code guidelines (internal development only)
-CLAUDE.md
