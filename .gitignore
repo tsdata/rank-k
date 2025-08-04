@@ -28,6 +28,8 @@ MANIFEST
 
 # Virtual environments
 .env
+.env.local
+.env.sample
 .venv
 env/
 venv/
@@ -42,24 +44,93 @@ htmlcov/
 .tox/
 .pytest_cache/
 coverage.xml
+.nox/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
 
 # IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # Development files
 .dev/
+temp/
+tmp/
+logs/
+*.log
 
 # Documentation build
 docs/_build/
 docs/build/
+site/
 
 # Jupyter Notebooks
 .ipynb_checkpoints/
 *.ipynb
+
+# Package files
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets and tokens
+.env
+.env.local
+.env.*.local
+secrets.json
+tokens.json
+
+# Scripts output
+scripts/output/
+scripts/logs/
+
+# Temporary test files
+test_*.tmp
+*.test
+test_data/
+tests/.pytest_cache/
+tests/__pycache__/
+tests/*.pyc
+tests/temp/
+tests/output/
+tests/.coverage
+tests/htmlcov/
+
+# Performance profiling
+*.prof
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
