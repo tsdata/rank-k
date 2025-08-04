@@ -120,46 +120,76 @@ def _print_comparison_table(all_results: Dict[str, Dict[str, float]], k: int) ->
             
         row = {'Method': method_name}
         
-        # Extract ROUGE scores
-        for rouge_type in ['rouge1', 'rouge2', 'rougeL']:
-            for key, value in results.items():
-                if rouge_type in key.lower() and not key.endswith('_std'):
-                    row[f'{rouge_type.upper()}'] = f"{value:.3f}"
-                    break
-            else:
-                row[f'{rouge_type.upper()}'] = 'N/A'
-        
-        # Extract ranx metrics
-        # Find k value from results keys
-        k_value = None
-        for key in results.keys():
-            if '@' in key:
-                k_value = key.split('@')[1]
-                break
-        if not k_value:
-            k_value = str(k)
-        
-        metrics_mapping = {
-            f'hit_rate@{k_value}': 'Hit@k',
-            f'ndcg@{k_value}': 'NDCG@k',
-            'mrr': 'MRR'
+        # Extract ROUGE scores with more flexible matching
+        rouge_mappings = {
+            'ROUGE1': ['rouge1', 'kiwi_rouge1', 'enhanced_rouge1'],
+            'ROUGE2': ['rouge2', 'kiwi_rouge2', 'enhanced_rouge2'], 
+            'ROUGEL': ['rougeL', 'rougel', 'kiwi_rougeL', 'enhanced_rougeL']
         }
         
-        for metric_key, display_name in metrics_mapping.items():
-            if metric_key in results:
-                row[display_name] = f"{results[metric_key]:.3f}"
-            else:
+        for display_name, possible_keys in rouge_mappings.items():
+            found = False
+            for key, value in results.items():
+                # Check if any of the possible keys match (case insensitive)
+                key_lower = key.lower()
+                for possible_key in possible_keys:
+                    if (possible_key.lower() in key_lower and 
+                        not key.endswith('_std') and 
+                        isinstance(value, (int, float))):
+                        row[display_name] = f"{value:.3f}"
+                        found = True
+                        break
+                if found:
+                    break
+            if not found:
+                row[display_name] = 'N/A'
+        
+        # Extract ranx metrics with flexible k value detection
+        k_value = str(k)  # Default k value
+        
+        # Try to find actual k value from the results
+        for key in results.keys():
+            if '@' in key:
+                try:
+                    k_value = key.split('@')[1]
+                    break
+                except IndexError:
+                    continue
+        
+        # More flexible metric matching
+        ranx_mappings = {
+            'Hit@k': [f'hit_rate@{k_value}', f'hit_rate@{k}', 'hit_rate'],
+            'NDCG@k': [f'ndcg@{k_value}', f'ndcg@{k}', 'ndcg'],
+            'MRR': ['mrr', 'MRR'],
+            'MAP@k': [f'map@{k_value}', f'map@{k}', 'map']
+        }
+        
+        for display_name, possible_keys in ranx_mappings.items():
+            found = False
+            for possible_key in possible_keys:
+                if possible_key in results and isinstance(results[possible_key], (int, float)):
+                    row[display_name] = f"{results[possible_key]:.3f}"
+                    found = True
+                    break
+            if not found:
                 row[display_name] = 'N/A'
         
         comparison_data.append(row)
     
-    # Print table
+    # Print table with dynamic headers based on available data
     if comparison_data:
-        headers = ['Method', 'ROUGE1', 'ROUGE2', 'ROUGEL', 'Hit@k', 'NDCG@k', 'MRR']
+        # Determine which columns actually have data
+        all_headers = ['Method', 'ROUGE1', 'ROUGE2', 'ROUGEL', 'Hit@k', 'NDCG@k', 'MAP@k', 'MRR']
+        useful_headers = ['Method']
+        
+        for header in all_headers[1:]:  # Skip 'Method'
+            has_data = any(row.get(header, 'N/A') != 'N/A' for row in comparison_data)
+            if has_data:
+                useful_headers.append(header)
         
         # Print header
         header_line = ""
-        for header in headers:
+        for header in useful_headers:
             header_line += f"{header:<15}"
         print(header_line)
         print("-" * len(header_line))
@@ -167,11 +197,11 @@ def _print_comparison_table(all_results: Dict[str, Dict[str, float]], k: int) ->
         # Print data rows
         for row in comparison_data:
             data_line = ""
-            for header in headers:
+            for header in useful_headers:
                 value = row.get(header, 'N/A')
-                if len(value) > 14:
-                    value = value[:11] + "..."
-                data_line += f"{value:<15}"
+                if len(str(value)) > 14:
+                    value = str(value)[:11] + "..."
+                data_line += f"{str(value):<15}"
             print(data_line)
     
     # Print recommendations
@@ -296,7 +326,7 @@ def batch_evaluation(retriever, data_batches: List[Dict[str, Any]],
     all_results = []
     
     for i, batch in enumerate(data_batches):
-        print(f"🔄 배치 {i+1}/{len(data_batches)} 처리 중...")
+        print(f"🔄 Processing batch {i+1}/{len(data_batches)} | 배치 {i+1}/{len(data_batches)} 처리 중...")
         
         questions = batch['questions']
         reference_contexts = batch['reference_contexts']
@@ -326,7 +356,7 @@ def batch_evaluation(retriever, data_batches: List[Dict[str, Any]],
                 all_results.append(results)
                 
             except Exception as e:
-                print(f"❌ 배치 {i+1}, 청크 {j//batch_size + 1} 처리 실패: {e}")
+                print(f"❌ Batch {i+1}, chunk {j//batch_size + 1} processing failed | 배치 {i+1}, 청크 {j//batch_size + 1} 처리 실패: {e}")
                 all_results.append({})
     
     return all_results
@@ -349,12 +379,12 @@ def export_results(results: Dict[str, Any], filepath: str, format: str = 'json')
     import csv
     from pathlib import Path
     
-    filepath = Path(filepath)
+    filepath_obj = Path(filepath)
     
     if format.lower() == 'json':
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(results, f, ensure_ascii=False, indent=2)
-        print(f"✅ 결과를 {filepath}에 JSON 형식으로 저장했습니다.")
+        print(f"✅ Results saved to JSON format | 결과를 JSON 형식으로 저장: {filepath_obj}")
         
     elif format.lower() == 'csv':
         with open(filepath, 'w', newline='', encoding='utf-8') as f:
@@ -373,6 +403,6 @@ def export_results(results: Dict[str, Any], filepath: str, format: str = 'json')
                         row.update(method_results)
                         writer.writerow(row)
         
-        print(f"✅ 결과를 {filepath}에 CSV 형식으로 저장했습니다.")
+        print(f"✅ Results saved to CSV format | 결과를 CSV 형식으로 저장: {filepath_obj}")
     else:
         raise ValueError(f"Unsupported format: {format}")

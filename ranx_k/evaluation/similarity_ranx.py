@@ -200,9 +200,24 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
     # Track total retrieved documents
     total_retrieved_docs = 0
     
-    for i, (question, ref_docs) in tqdm(enumerate(zip(questions, reference_contexts)), 
-                                       desc="ranx similarity evaluation | ranx 유사도 평가",
-                                       total=len(questions)):
+    # Create iterator that shows progress bar only after first 3 iterations
+    iterator = enumerate(zip(questions, reference_contexts))
+    total_questions = len(questions)
+    
+    # Initialize progress bar as None
+    pbar = None
+    
+    for i, (question, ref_docs) in iterator:
+        # Create progress bar after first 3 iterations
+        if i == 3 and pbar is None:
+            pbar = tqdm(total=total_questions, 
+                       desc="ranx similarity evaluation | ranx 유사도 평가",
+                       initial=3)  # Start from 3 since we've already done 3
+        
+        # Update progress bar if it exists
+        if pbar is not None:
+            pbar.update(1)
+        
         query_id = f"q_{i+1}"
         
         # Retrieve documents
@@ -295,6 +310,10 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
                 retrieved_count = len([doc for doc in run_dict[query_id] if doc.startswith('ref_')])
                 print(f"📋 Retrieved reference docs | 검색된 참조 문서: {retrieved_count}/{len(ref_texts)}")
             print("-" * 50)
+    
+    # Close progress bar if it was created
+    if pbar is not None:
+        pbar.close()
     
     # Evaluate using ranx
     try:
