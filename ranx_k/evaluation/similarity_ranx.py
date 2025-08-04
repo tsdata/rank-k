@@ -52,7 +52,9 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
                                  k: int = 5,
                                  method: str = 'embedding', 
                                  similarity_threshold: float = 0.7,
-                                 embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2") -> Dict[str, float]:
+                                 embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+                                 use_graded_relevance: bool = False,
+                                 evaluation_mode: str = 'reference_based') -> Dict[str, float]:
     """
     Evaluate RAG system using ranx with semantic similarity matching.
     
@@ -68,6 +70,10 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         method: Similarity calculation method ('embedding', 'rouge', 'kiwi_rouge', 'openai').
         similarity_threshold: Minimum similarity score to consider relevant (0.0-1.0).
         embedding_model: Sentence transformer model name for embedding method.
+        use_graded_relevance: If True, use similarity scores as relevance grades. 
+                             If False, use binary relevance (0 or 1).
+        evaluation_mode: 'reference_based' evaluates against all reference documents,
+                        'retrieval_based' evaluates only retrieved documents.
         
     Returns:
         Dictionary containing ranx evaluation metrics:
@@ -109,6 +115,26 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         ...     embedding_model="BAAI/bge-m3"
         ... )
         
+        Reference-based evaluation (properly calculates recall):
+        >>> results = evaluate_with_ranx_similarity(
+        ...     retriever=my_retriever,
+        ...     questions=questions,
+        ...     reference_contexts=references,
+        ...     method='kiwi_rouge',
+        ...     similarity_threshold=0.3,
+        ...     evaluation_mode='reference_based'  # Evaluates against all reference docs
+        ... )
+        
+        Using graded relevance instead of binary:
+        >>> results = evaluate_with_ranx_similarity(
+        ...     retriever=my_retriever,
+        ...     questions=questions,
+        ...     reference_contexts=references,
+        ...     method='embedding',
+        ...     use_graded_relevance=True,  # Uses similarity scores as relevance grades
+        ...     evaluation_mode='reference_based'
+        ... )
+        
         Using Korean-optimized Kiwi ROUGE:
         >>> results = evaluate_with_ranx_similarity(
         ...     retriever=my_retriever,
@@ -136,7 +162,8 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
             "ranx is required for this evaluation. Install with: pip install ranx"
         )
     
-    print(f"🔍 유사도 기반 ranx 평가 시작 (방법: {method}, 임계값: {similarity_threshold})")
+    print(f"🔍 Starting similarity-based ranx evaluation | 유사도 기반 ranx 평가 시작")
+    print(f"   Method | 방법: {method}, Threshold | 임계값: {similarity_threshold}, Mode | 모드: {evaluation_mode}")
     
     # Initialize similarity calculator based on method
     if method == 'embedding':
@@ -170,13 +197,18 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
     qrels_dict = {}
     run_dict = {}
     
+    # Track total retrieved documents
+    total_retrieved_docs = 0
+    
     for i, (question, ref_docs) in tqdm(enumerate(zip(questions, reference_contexts)), 
-                                       desc="ranx 유사도 평가"):
+                                       desc="ranx similarity evaluation | ranx 유사도 평가",
+                                       total=len(questions)):
         query_id = f"q_{i+1}"
         
         # Retrieve documents
         retrieved_docs = retriever.invoke(question)[:k]
         retrieved_texts = [doc.page_content for doc in retrieved_docs]
+        total_retrieved_docs += len(retrieved_docs)
         
         # Extract reference texts
         ref_texts = []
@@ -189,30 +221,79 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
             ref_texts, retrieved_texts
         )
         
-        # Build qrels and run with matching document IDs
-        # Use retrieved documents as the base and calculate their relevance
+        # Build qrels and run based on evaluation mode
         qrels_dict[query_id] = {}
         run_dict[query_id] = {}
         
-        for j, ret_text in enumerate(retrieved_texts):
-            doc_id = f"doc_{j}"
+        if evaluation_mode == 'reference_based':
+            # Reference-based evaluation: Include all reference documents in qrels
+            # This properly evaluates recall
             
-            # Find maximum similarity with any reference document
-            max_similarity = np.max(similarity_matrix[:, j]) if similarity_matrix.shape[0] > 0 else 0
+            # First, add all reference documents to qrels
+            for ref_idx, ref_text in enumerate(ref_texts):
+                ref_doc_id = f"ref_{ref_idx}"
+                if use_graded_relevance:
+                    qrels_dict[query_id][ref_doc_id] = 1.0  # All reference docs have relevance 1.0
+                else:
+                    qrels_dict[query_id][ref_doc_id] = 1.0
             
-            # Add to run (all retrieved documents with their similarity scores)
-            run_dict[query_id][doc_id] = float(max_similarity)
-            
-            # Add to qrels only if above threshold (relevant documents)
-            if max_similarity >= similarity_threshold:
-                qrels_dict[query_id][doc_id] = 1.0  # Binary relevance for ranx metrics
+            # Then, check which reference documents were retrieved
+            for ref_idx, ref_text in enumerate(ref_texts):
+                ref_doc_id = f"ref_{ref_idx}"
+                
+                # Find best matching retrieved document for this reference
+                if similarity_matrix.shape[1] > 0:
+                    similarities = similarity_matrix[ref_idx, :]
+                    best_match_idx = np.argmax(similarities)
+                    best_similarity = similarities[best_match_idx]
+                    
+                    # Add to run if similarity is above threshold
+                    if best_similarity >= similarity_threshold:
+                        run_dict[query_id][ref_doc_id] = float(best_similarity)
+                        
+            # Also add non-reference retrieved documents with low scores
+            for j, ret_text in enumerate(retrieved_texts):
+                # Check if this retrieved doc matches any reference
+                if similarity_matrix.shape[0] > 0:
+                    max_sim_to_any_ref = np.max(similarity_matrix[:, j])
+                    if max_sim_to_any_ref < similarity_threshold:
+                        # This is a non-relevant retrieved document
+                        non_ref_id = f"non_ref_{j}"
+                        run_dict[query_id][non_ref_id] = 0.0
+                        
+        else:
+            # Retrieval-based evaluation: Original behavior
+            for j, ret_text in enumerate(retrieved_texts):
+                doc_id = f"doc_{j}"
+                
+                # Find maximum similarity with any reference document
+                max_similarity = np.max(similarity_matrix[:, j]) if similarity_matrix.shape[0] > 0 else 0
+                
+                # Add to run (all retrieved documents with their similarity scores)
+                run_dict[query_id][doc_id] = float(max_similarity)
+                
+                # Add to qrels based on relevance
+                if use_graded_relevance:
+                    # Use actual similarity score as relevance grade
+                    if max_similarity >= similarity_threshold:
+                        qrels_dict[query_id][doc_id] = float(max_similarity)
+                else:
+                    # Binary relevance
+                    if max_similarity >= similarity_threshold:
+                        qrels_dict[query_id][doc_id] = 1.0
         
         # Debug info for first few queries
         if i < 3:
-            print(f"\n🔍 질문 {i+1}: {question}")
-            print(f"📊 유사도 매트릭스 shape: {similarity_matrix.shape}")
-            print(f"📈 최대 유사도: {np.max(similarity_matrix):.3f}")
-            print(f"📋 qrels 항목 수: {len(qrels_dict[query_id])}")
+            print(f"\n🔍 Question | 질문 {i+1}: {question[:50]}...")
+            print(f"📊 Reference docs | 참조 문서: {len(ref_texts)}, Retrieved docs | 검색 문서: {len(retrieved_texts)}")
+            print(f"📊 Similarity matrix shape | 유사도 매트릭스 shape: {similarity_matrix.shape}")
+            if similarity_matrix.size > 0:
+                print(f"📈 Max similarity | 최대 유사도: {np.max(similarity_matrix):.3f}")
+            print(f"📋 Qrels items | qrels 항목 수: {len(qrels_dict[query_id])}")
+            print(f"📋 Run items | run 항목 수: {len(run_dict[query_id])}")
+            if evaluation_mode == 'reference_based':
+                retrieved_count = len([doc for doc in run_dict[query_id] if doc.startswith('ref_')])
+                print(f"📋 Retrieved reference docs | 검색된 참조 문서: {retrieved_count}/{len(ref_texts)}")
             print("-" * 50)
     
     # Evaluate using ranx
@@ -224,7 +305,7 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         metrics = [f"hit_rate@{k}", f"ndcg@{k}", f"map@{k}", "mrr"]
         results = evaluate(qrels, run, metrics)
         
-        print(f"\n📊 유사도 기반 ranx 평가 결과 ({method}):")
+        print(f"\n📊 Similarity-based ranx evaluation results | 유사도 기반 ranx 평가 결과 ({method}):")
         for metric, score in results.items():
             print(f"  {metric}: {score:.3f}")
         
@@ -233,11 +314,20 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         total_queries = len(qrels_dict)
         avg_relevant_per_query = total_relevant_docs / total_queries if total_queries > 0 else 0
         
-        print(f"\n📈 분석 정보:")
-        print(f"  총 질문 수: {total_queries}")
-        print(f"  관련 문서 총 개수: {total_relevant_docs}")
-        print(f"  질문당 평균 관련 문서: {avg_relevant_per_query:.1f}")
-        print(f"  사용된 임계값: {similarity_threshold}")
+        print(f"\n📈 Analysis information | 분석 정보:")
+        print(f"  Total queries | 총 질문 수: {total_queries}")
+        print(f"  Total retrieved docs | 총 검색 문서 수: {total_retrieved_docs}")
+        print(f"  Avg docs per query | 질문당 평균 검색 문서: {total_retrieved_docs/total_queries:.1f}")
+        print(f"  Total relevant docs | 관련 문서 총 개수: {total_relevant_docs}")
+        print(f"  Avg relevant per query | 질문당 평균 관련 문서: {avg_relevant_per_query:.1f}")
+        print(f"  Threshold used | 사용된 임계값: {similarity_threshold}")
+        
+        if evaluation_mode == 'reference_based':
+            total_retrieved = sum(len([doc for doc in run[query_id] if doc.startswith('ref_')]) 
+                                for query_id in run_dict)
+            total_reference = sum(len(ref_docs) for ref_docs in reference_contexts)
+            overall_recall = total_retrieved / total_reference if total_reference > 0 else 0
+            print(f"  Overall recall | 전체 재현율: {overall_recall:.3f} ({total_retrieved}/{total_reference})")
         
         return results
         

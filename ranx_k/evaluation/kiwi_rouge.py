@@ -11,6 +11,7 @@ import numpy as np
 from collections import Counter
 import re
 from typing import List, Dict, Any
+from tqdm import tqdm
 
 try:
     from kiwipiepy import Kiwi
@@ -59,7 +60,7 @@ def simple_kiwi_rouge_evaluation(retriever, questions: List[str],
             "Kiwi is required for this evaluation. Install with: pip install kiwipiepy"
         )
     
-    print(f"🔍 Kiwi ROUGE 평가 시작 (k={k})")
+    print(f"🔍 Starting Kiwi ROUGE evaluation | Kiwi ROUGE 평가 시작 (k={k})")
     
     # Initialize Kiwi
     kiwi = Kiwi()
@@ -123,12 +124,16 @@ def simple_kiwi_rouge_evaluation(retriever, questions: List[str],
     # Evaluation loop
     rouge1_scores, rouge2_scores, rougeL_scores = [], [], []
     
-    for i, (question, ref_docs) in enumerate(zip(questions, reference_contexts)):
-        print(f"📝 {i+1}/{len(questions)} 평가 중...")
-        
+    # Track total retrieved documents
+    total_retrieved = 0
+    
+    for i, (question, ref_docs) in enumerate(tqdm(zip(questions, reference_contexts), 
+                                                  desc="Kiwi ROUGE evaluation | Kiwi ROUGE 평가", 
+                                                  total=len(questions))):
         # Retrieve documents
         retrieved_docs = retriever.invoke(question)[:k]
         retrieved_texts = [doc.page_content for doc in retrieved_docs]
+        total_retrieved += len(retrieved_docs)
         
         # Calculate best scores for each reference document
         question_scores = {'rouge1': [], 'rouge2': [], 'rougeL': []}
@@ -166,5 +171,10 @@ def simple_kiwi_rouge_evaluation(retriever, questions: List[str],
     print("\n📊 Kiwi ROUGE Evaluation Results | Kiwi ROUGE 평가 결과:")
     for metric, score in results.items():
         print(f"  {metric}: {score:.3f}")
+    
+    print(f"\n📈 Analysis information | 분석 정보:")
+    print(f"  Total queries | 총 질문 수: {len(questions)}")
+    print(f"  Total retrieved docs | 총 검색 문서 수: {total_retrieved}")
+    print(f"  Avg docs per query | 질문당 평균 검색 문서: {total_retrieved/len(questions):.1f}")
     
     return results

@@ -5008,7 +5008,7 @@ wheels = [
 
 [[package]]
 name = "ranx-k"
-version = "0.0.4"
+version = "0.0.7"
 source = { editable = "." }
 dependencies = [
     { name = "kiwipiepy" },

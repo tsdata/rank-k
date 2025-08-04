@@ -89,19 +89,21 @@ results = rouge_kiwi_enhanced_evaluation(
 ```python
 from ranx_k.evaluation import evaluate_with_ranx_similarity
 
-# 기본 임베딩 모델 사용
+# 참조 기반 평가 (정확한 재현율을 위해 권장)
 results = evaluate_with_ranx_similarity(
     retriever=your_retriever,
     questions=your_questions,
     reference_contexts=your_reference_contexts,
     k=5,
     method='embedding',
-    similarity_threshold=0.6
+    similarity_threshold=0.6,
+    evaluation_mode='reference_based'  # 신규: 모든 참조 문서 대상 평가
 )
 
 print(f"Hit@5: {results['hit_rate@5']:.3f}")
 print(f"NDCG@5: {results['ndcg@5']:.3f}")
 print(f"MRR: {results['mrr']:.3f}")
+print(f"Recall@5: {results.get('recall@5', 'N/A')}")  # reference_based 모드에서 사용 가능
 ```
 
 #### 다른 임베딩 모델 사용

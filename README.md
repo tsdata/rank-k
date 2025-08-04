@@ -89,19 +89,21 @@ results = rouge_kiwi_enhanced_evaluation(
 ```python
 from ranx_k.evaluation import evaluate_with_ranx_similarity
 
-# Basic embedding model usage
+# Reference-based evaluation (recommended for accurate recall)
 results = evaluate_with_ranx_similarity(
     retriever=your_retriever,
     questions=your_questions,
     reference_contexts=your_reference_contexts,
     k=5,
     method='embedding',
-    similarity_threshold=0.6
+    similarity_threshold=0.6,
+    evaluation_mode='reference_based'  # NEW: Evaluates against all reference docs
 )
 
 print(f"Hit@5: {results['hit_rate@5']:.3f}")
 print(f"NDCG@5: {results['ndcg@5']:.3f}")
 print(f"MRR: {results['mrr']:.3f}")
+print(f"Recall@5: {results.get('recall@5', 'N/A')}")  # Available in reference_based mode
 ```
 
 #### Using Different Embedding Models

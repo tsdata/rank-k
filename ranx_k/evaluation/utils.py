@@ -130,17 +130,32 @@ def _print_comparison_table(all_results: Dict[str, Dict[str, float]], k: int) ->
                 row[f'{rouge_type.upper()}'] = 'N/A'
         
         # Extract ranx metrics
-        for metric in ['hit_rate@5', 'ndcg@5', 'mrr']:
-            if metric in results:
-                row[metric] = f"{results[metric]:.3f}"
+        # Find k value from results keys
+        k_value = None
+        for key in results.keys():
+            if '@' in key:
+                k_value = key.split('@')[1]
+                break
+        if not k_value:
+            k_value = str(k)
+        
+        metrics_mapping = {
+            f'hit_rate@{k_value}': 'Hit@k',
+            f'ndcg@{k_value}': 'NDCG@k',
+            'mrr': 'MRR'
+        }
+        
+        for metric_key, display_name in metrics_mapping.items():
+            if metric_key in results:
+                row[display_name] = f"{results[metric_key]:.3f}"
             else:
-                row[metric] = 'N/A'
+                row[display_name] = 'N/A'
         
         comparison_data.append(row)
     
     # Print table
     if comparison_data:
-        headers = ['Method', 'ROUGE1', 'ROUGE2', 'ROUGEL', 'Hit@5', 'NDCG@5', 'MRR']
+        headers = ['Method', 'ROUGE1', 'ROUGE2', 'ROUGEL', 'Hit@k', 'NDCG@k', 'MRR']
         
         # Print header
         header_line = ""
