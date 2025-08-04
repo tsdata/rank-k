@@ -29,7 +29,7 @@ MANIFEST
 # Virtual environments
 .env
 .env.local
-.env.sample
+.env.example
 .venv
 env/
 venv/
