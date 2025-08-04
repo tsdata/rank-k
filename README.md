@@ -131,7 +131,7 @@ ranxk_rouge1 = 0.421  # +79.9% 향상!
 
 ## 📚 문서화
 
-자세한 사용법과 예제는 [docs 폴더](docs/)의 가이드를 참조하세요.
+자세한 사용법과 예제는 [GitHub 문서](https://github.com/tsdata/rank-k/tree/main/docs)를 참조하세요.
 
 ## 🤝 기여하기
 
@@ -165,7 +165,7 @@ ranx-k는 오픈소스 프로젝트입니다. 기여를 환영합니다!
 ## 📞 지원
 
 - 🐛 버그 리포트: [GitHub Issues](https://github.com/tsdata/rank-k/issues)
-- 💬 질문 및 토론: [GitHub Discussions](https://github.com/tsdata/rank-k/discussions)
+- 💬 질문 및 토론: [GitHub Issues](https://github.com/tsdata/rank-k/issues)
 - 📧 이메일: ontofinance@gmail.com
 
 ---

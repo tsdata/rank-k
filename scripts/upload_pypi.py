@@ -9,10 +9,35 @@ import sys
 import subprocess
 from pathlib import Path
 
+# uv를 사용하여 의존성 확인 및 설치
+def ensure_dependencies():
+    """uv를 사용하여 필요한 의존성을 확인하고 설치합니다."""
+    try:
+        # uv로 dotenv 설치 확인
+        result = subprocess.run(['uv', 'run', 'python', '-c', 'import dotenv'], 
+                              capture_output=True, text=True)
+        if result.returncode != 0:
+            print("📦 python-dotenv 설치 중...")
+            subprocess.run(['uv', 'add', 'python-dotenv'], check=True)
+        
+        # twine 설치 확인
+        result = subprocess.run(['uv', 'run', 'python', '-c', 'import twine'], 
+                              capture_output=True, text=True)
+        if result.returncode != 0:
+            print("📦 twine 설치 중...")
+            subprocess.run(['uv', 'add', 'twine'], check=True)
+            
+    except subprocess.CalledProcessError as e:
+        print(f"❌ uv 의존성 설치 실패: {e}")
+        sys.exit(1)
+
+# 의존성 확인
+ensure_dependencies()
+
 try:
     from dotenv import load_dotenv
 except ImportError:
-    print("❌ python-dotenv가 필요합니다: pip install python-dotenv")
+    print("❌ python-dotenv 로드 실패")
     sys.exit(1)
 
 def main():
@@ -51,10 +76,10 @@ def main():
         print("   먼저 빌드를 실행하세요: python -m build")
         sys.exit(1)
     
-    # twine 업로드 실행
+    # uv를 사용한 twine 업로드 실행
     try:
         result = subprocess.run([
-            'twine', 'upload', 'dist/*'
+            'uv', 'run', 'twine', 'upload', 'dist/*'
         ], check=True, capture_output=True, text=True)
         
         print("✅ PyPI 업로드 성공!")
@@ -78,7 +103,7 @@ def upload_test():
     
     try:
         result = subprocess.run([
-            'twine', 'upload', '--repository', 'testpypi', 'dist/*'
+            'uv', 'run', 'twine', 'upload', '--repository', 'testpypi', 'dist/*'
         ], check=True, capture_output=True, text=True)
         
         print("✅ TestPyPI 업로드 성공!")
