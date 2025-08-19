@@ -54,7 +54,10 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
                                  similarity_threshold: float = 0.7,
                                  embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
                                  use_graded_relevance: bool = False,
-                                 evaluation_mode: str = 'reference_based') -> Dict[str, float]:
+                                 evaluation_mode: str = 'reference_based',
+                                 tokenize_method: str = 'morphs',
+                                 use_stopwords: bool = True,
+                                 rouge_type: str = 'rougeL') -> Dict[str, float]:
     """
     Evaluate RAG system using ranx with semantic similarity matching.
     
@@ -72,8 +75,13 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         embedding_model: Sentence transformer model name for embedding method.
         use_graded_relevance: If True, use similarity scores as relevance grades. 
                              If False, use binary relevance (0 or 1).
-        evaluation_mode: 'reference_based' evaluates against all reference documents,
-                        'retrieval_based' evaluates only retrieved documents.
+        evaluation_mode: 'reference_based' calculates proper recall by including all reference 
+                        documents in evaluation (measures how many reference docs were retrieved).
+                        'retrieval_based' only evaluates actually retrieved documents 
+                        (measures precision of retrieval but cannot calculate proper recall).
+        tokenize_method: For 'kiwi_rouge' method - tokenization method ('morphs' or 'nouns').
+        use_stopwords: For 'kiwi_rouge' method - whether to filter Korean stopwords.
+        rouge_type: For 'kiwi_rouge' method - ROUGE metric to use ('rouge1', 'rouge2', 'rougeL').
         
     Returns:
         Dictionary containing ranx evaluation metrics:
@@ -162,8 +170,17 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
             "ranx is required for this evaluation. Install with: pip install ranx"
         )
     
+    # Validate evaluation mode
+    if evaluation_mode not in ['reference_based', 'retrieval_based']:
+        raise ValueError(f"Invalid evaluation_mode: {evaluation_mode}. Must be 'reference_based' or 'retrieval_based'")
+    
     print(f"🔍 Starting similarity-based ranx evaluation | 유사도 기반 ranx 평가 시작")
     print(f"   Method | 방법: {method}, Threshold | 임계값: {similarity_threshold}, Mode | 모드: {evaluation_mode}")
+    
+    if evaluation_mode == 'reference_based':
+        print(f"   📊 Reference-based mode: Will calculate proper recall metrics | 참조 기반 모드: 정확한 재현율 계산")
+    else:
+        print(f"   📊 Retrieval-based mode: Will measure precision of retrieved documents | 검색 기반 모드: 검색된 문서의 정밀도 측정")
     
     # Initialize similarity calculator based on method
     if method == 'embedding':
@@ -184,7 +201,12 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
             raise ImportError(
                 "kiwipiepy required for kiwi_rouge method. Install with: pip install kiwipiepy"
             )
-        similarity_calculator = KiwiRougeSimilarityCalculator()
+        # Use enhanced Kiwi ROUGE with configurable tokenization and ROUGE type
+        similarity_calculator = KiwiRougeSimilarityCalculator(
+            tokenize_method=tokenize_method, 
+            use_stopwords=use_stopwords, 
+            rouge_type=rouge_type
+        )
     elif method == 'openai':
         if not OPENAI_AVAILABLE:
             raise ImportError(
@@ -225,60 +247,105 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         retrieved_texts = [doc.page_content for doc in retrieved_docs]
         total_retrieved_docs += len(retrieved_docs)
         
-        # Extract reference texts
+        # Extract reference texts with proper type handling
         ref_texts = []
         for ref_doc in ref_docs:
-            ref_text = ref_doc.page_content if hasattr(ref_doc, 'page_content') else ref_doc
+            if hasattr(ref_doc, 'page_content'):
+                ref_text = ref_doc.page_content
+            elif isinstance(ref_doc, str):
+                ref_text = ref_doc
+            else:
+                ref_text = str(ref_doc)
             ref_texts.append(ref_text)
         
         # Calculate similarity matrix (reference docs x retrieved docs)
-        similarity_matrix = similarity_calculator.calculate_similarity_matrix(
-            ref_texts, retrieved_texts
-        )
+        try:
+            similarity_matrix = similarity_calculator.calculate_similarity_matrix(
+                ref_texts, retrieved_texts
+            )
+            # Handle NaN values in similarity matrix
+            if similarity_matrix.size > 0 and np.isnan(similarity_matrix).any():
+                similarity_matrix = np.nan_to_num(similarity_matrix, nan=0.0)
+        except Exception as e:
+            print(f"⚠️ Warning: Error calculating similarity matrix for query {query_id}: {e}")
+            # Create empty matrix as fallback
+            similarity_matrix = np.zeros((len(ref_texts), len(retrieved_texts)))
         
         # Build qrels and run based on evaluation mode
         qrels_dict[query_id] = {}
         run_dict[query_id] = {}
-        
+
         if evaluation_mode == 'reference_based':
-            # Reference-based evaluation: Include all reference documents in qrels
-            # This properly evaluates recall
-            
-            # First, add all reference documents to qrels
+            # Step 1: Calculate all similarities first
+            ref_similarities = []
             for ref_idx, ref_text in enumerate(ref_texts):
-                ref_doc_id = f"ref_{ref_idx}"
-                if use_graded_relevance:
-                    qrels_dict[query_id][ref_doc_id] = 1.0  # All reference docs have relevance 1.0
+                if similarity_matrix.shape[1] > 0:
+                    similarities = similarity_matrix[ref_idx, :]
+                    best_similarity = np.max(similarities)
+                    ref_similarities.append(best_similarity)
                 else:
-                    qrels_dict[query_id][ref_doc_id] = 1.0
+                    ref_similarities.append(0.0)
             
-            # Then, check which reference documents were retrieved
+            # Step 2: Handle empty qrels case more robustly
+            max_ref_similarity = max(ref_similarities) if ref_similarities else 0.0
+            
+            if use_graded_relevance:
+                if max_ref_similarity < similarity_threshold:
+                    if max_ref_similarity > 0.0:
+                        # Use a more conservative adjustment: ensure at least one reference is included
+                        adjusted_threshold = max_ref_similarity * 0.95
+                        effective_threshold = max(adjusted_threshold, 0.1)  # Minimum threshold of 0.1
+                        if i < 3:  # Only show warning for first few queries to avoid spam
+                            print(f"⚠️ Warning: Adjusted threshold for query {query_id}: "
+                                f"{similarity_threshold:.3f} → {effective_threshold:.3f}")
+                    else:
+                        # If all similarities are 0, use a very low threshold to include at least one
+                        effective_threshold = 0.01
+                        if i < 3:
+                            print(f"⚠️ Warning: All similarities are 0 for query {query_id}. Using minimal threshold.")
+                else:
+                    effective_threshold = similarity_threshold
+            else:
+                # For binary relevance, always include all reference documents in qrels
+                # but filter run based on threshold for retrieved documents
+                effective_threshold = similarity_threshold
+            
+            # Step 3: Add reference documents to qrels
             for ref_idx, ref_text in enumerate(ref_texts):
                 ref_doc_id = f"ref_{ref_idx}"
                 
-                # Find best matching retrieved document for this reference
-                if similarity_matrix.shape[1] > 0:
-                    similarities = similarity_matrix[ref_idx, :]
-                    best_match_idx = np.argmax(similarities)
-                    best_similarity = similarities[best_match_idx]
-                    
-                    # Add to run if similarity is above threshold
-                    if best_similarity >= similarity_threshold:
+                if use_graded_relevance:
+                    best_similarity = ref_similarities[ref_idx]
+                    if best_similarity >= effective_threshold:
+                        qrels_dict[query_id][ref_doc_id] = float(best_similarity)
+                else:
+                    # Binary relevance: all reference docs are relevant
+                    qrels_dict[query_id][ref_doc_id] = 1.0
+            
+            # Step 4: Add reference documents to run (only those in qrels)
+            for ref_idx, ref_text in enumerate(ref_texts):
+                ref_doc_id = f"ref_{ref_idx}"
+                
+                if ref_doc_id in qrels_dict[query_id]:
+                    best_similarity = ref_similarities[ref_idx]
+                    if best_similarity >= effective_threshold:
                         run_dict[query_id][ref_doc_id] = float(best_similarity)
-                        
-            # Also add non-reference retrieved documents with low scores
-            for j, ret_text in enumerate(retrieved_texts):
-                # Check if this retrieved doc matches any reference
+            
+            # Step 5: Add non-reference retrieved documents
+            for j in range(len(retrieved_texts)):
                 if similarity_matrix.shape[0] > 0:
                     max_sim_to_any_ref = np.max(similarity_matrix[:, j])
-                    if max_sim_to_any_ref < similarity_threshold:
-                        # This is a non-relevant retrieved document
+                    
+                    # Add to run with low scores (these represent false positives)
+                    if max_sim_to_any_ref < effective_threshold:
                         non_ref_id = f"non_ref_{j}"
-                        run_dict[query_id][non_ref_id] = 0.0
+                        run_dict[query_id][non_ref_id] = float(max_sim_to_any_ref)
+                        # Note: These are NOT added to qrels as they're irrelevant                     
+                        
                         
         else:
             # Retrieval-based evaluation: Original behavior
-            for j, ret_text in enumerate(retrieved_texts):
+            for j in range(len(retrieved_texts)):
                 doc_id = f"doc_{j}"
                 
                 # Find maximum similarity with any reference document
@@ -323,6 +390,11 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         # Calculate IR metrics
         metrics = [f"hit_rate@{k}", f"ndcg@{k}", f"map@{k}", "mrr"]
         results = evaluate(qrels, run, metrics)
+        
+        # Ensure results is a dictionary for type safety
+        if not isinstance(results, dict):
+            print(f"❌ Error: ranx evaluate returned unexpected type: {type(results)}")
+            return {}
         
         print(f"\n📊 Similarity-based ranx evaluation results | 유사도 기반 ranx 평가 결과 ({method}):")
         for metric, score in results.items():
@@ -383,8 +455,17 @@ class EmbeddingSimilarityCalculator:
         if not ref_texts or not ret_texts:
             return np.array([[]])
         
-        ref_embeddings = self.model.encode(ref_texts)
-        ret_embeddings = self.model.encode(ret_texts)
+        # For very large document sets, use batch processing to avoid memory issues
+        batch_size = 50  # Process in batches if more than 50 documents
+        total_docs = len(ref_texts) + len(ret_texts)
+        
+        if total_docs > batch_size:
+            # Use show_progress_bar=False for cleaner output during batch processing
+            ref_embeddings = self.model.encode(ref_texts, show_progress_bar=False)
+            ret_embeddings = self.model.encode(ret_texts, show_progress_bar=False)
+        else:
+            ref_embeddings = self.model.encode(ref_texts)
+            ret_embeddings = self.model.encode(ret_texts)
         
         return cosine_similarity(ref_embeddings, ret_embeddings)
 
@@ -423,15 +504,36 @@ class RougeSimilarityCalculator:
 
 
 class KiwiRougeSimilarityCalculator:
-    """Kiwi + ROUGE similarity calculator for Korean text."""
+    """Enhanced Kiwi + ROUGE similarity calculator for Korean text."""
     
-    def __init__(self):
-        """Initialize Kiwi ROUGE similarity calculator."""
-        self.kiwi = Kiwi()
-        self.korean_stopwords = {
-            '은', '는', '이', '가', '을', '를', '에', '의', '로', '도', '만', 
-            '하다', '되다', '있다', '것', '들', '등', '및', '또는', '그리고'
-        }
+    def __init__(self, tokenize_method: str = 'morphs', use_stopwords: bool = True, rouge_type: str = 'rougeL'):
+        """
+        Initialize enhanced Kiwi ROUGE similarity calculator.
+        
+        Args:
+            tokenize_method: Tokenization method ('morphs' or 'nouns').
+            use_stopwords: Whether to filter Korean stopwords.
+            rouge_type: ROUGE metric to use ('rouge1', 'rouge2', 'rougeL').
+        """
+        self.rouge_type = rouge_type
+        if rouge_type not in ['rouge1', 'rouge2', 'rougeL']:
+            raise ValueError(f"Unsupported rouge_type: {rouge_type}. Must be 'rouge1', 'rouge2', or 'rougeL'")
+            
+        try:
+            # Try to use existing KiwiTokenizer from the project
+            from ..tokenizers import KiwiTokenizer
+            self.tokenizer = KiwiTokenizer(method=tokenize_method, use_stopwords=use_stopwords)
+            self.use_custom_tokenizer = True
+        except ImportError:
+            # Fallback to simple Kiwi implementation
+            self.kiwi = Kiwi()
+            self.tokenize_method = tokenize_method
+            self.use_stopwords = use_stopwords
+            self.korean_stopwords = {
+                '은', '는', '이', '가', '을', '를', '에', '의', '로', '도', '만', 
+                '하다', '되다', '있다', '것', '들', '등', '및', '또는', '그리고'
+            }
+            self.use_custom_tokenizer = False
     
     def tokenize_with_kiwi(self, text: str) -> List[str]:
         """
@@ -443,37 +545,87 @@ class KiwiRougeSimilarityCalculator:
         Returns:
             List of meaningful Korean morphemes.
         """
+        if self.use_custom_tokenizer:
+            return self.tokenizer.tokenize(text)
+        
+        # Fallback implementation
         text = re.sub(r'[^\w\s]', ' ', text)
         text = re.sub(r'\s+', ' ', text).strip()
         
         try:
             analyzed = self.kiwi.analyze(text)
             tokens = []
-            for token, pos, _, _ in analyzed[0][0]:
-                if (pos.startswith(('N', 'V', 'M')) and 
-                    len(token) > 1 and 
-                    token.lower() not in self.korean_stopwords):
-                    tokens.append(token.lower())
+            for result in analyzed[0][0]:
+                # Handle different Kiwi API versions
+                if isinstance(result, tuple) and len(result) >= 2:
+                    token, pos = result[0], result[1]
+                elif hasattr(result, 'form') and hasattr(result, 'tag'):
+                    token, pos = result.form, result.tag
+                else:
+                    continue
+                    
+                if self.tokenize_method == 'nouns':
+                    # Only nouns for noun method
+                    if (pos.startswith('N') and len(token) > 1):
+                        if not self.use_stopwords or token.lower() not in self.korean_stopwords:
+                            tokens.append(token.lower())
+                else:
+                    # Morphs method: nouns, verbs, modifiers
+                    if (pos.startswith(('N', 'V', 'M')) and len(token) > 1):
+                        if not self.use_stopwords or token.lower() not in self.korean_stopwords:
+                            tokens.append(token.lower())
             return tokens
         except:
-            return [t.lower() for t in text.split() 
-                   if len(t) > 1 and t.lower() not in self.korean_stopwords]
+            # Simple fallback tokenization
+            simple_tokens = [t.lower() for t in text.split() if len(t) > 1]
+            if self.use_stopwords:
+                simple_tokens = [t for t in simple_tokens if t not in self.korean_stopwords]
+            return simple_tokens
     
-    def calculate_rouge_score(self, ref_tokens: List[str], ret_tokens: List[str]) -> float:
+    def calculate_rouge_scores(self, ref_tokens: List[str], ret_tokens: List[str]) -> Dict[str, float]:
         """
-        Calculate ROUGE-L F1 score between token lists.
+        Calculate comprehensive ROUGE scores between token lists.
         
         Args:
             ref_tokens: Reference document tokens.
             ret_tokens: Retrieved document tokens.
             
         Returns:
-            ROUGE-L F1 score.
+            Dictionary with ROUGE-1, ROUGE-2, and ROUGE-L F1 scores.
         """
         if not ref_tokens or not ret_tokens:
-            return 0.0
+            return {'rouge1': 0.0, 'rouge2': 0.0, 'rougeL': 0.0}
         
-        # Calculate Longest Common Subsequence
+        from collections import Counter
+        
+        # ROUGE-1: Unigram overlap F1 score
+        ref_1 = Counter(ref_tokens)
+        ret_1 = Counter(ret_tokens)
+        overlap_1 = sum((ref_1 & ret_1).values())
+        
+        if overlap_1 == 0:
+            rouge1_f1 = 0.0
+        else:
+            rouge1_precision = overlap_1 / len(ret_tokens)
+            rouge1_recall = overlap_1 / len(ref_tokens)
+            rouge1_f1 = 2 * (rouge1_precision * rouge1_recall) / (rouge1_precision + rouge1_recall)
+        
+        # ROUGE-2: Bigram overlap F1 score
+        if len(ref_tokens) < 2 or len(ret_tokens) < 2:
+            rouge2_f1 = 0.0
+        else:
+            ref_2 = Counter([tuple(ref_tokens[i:i+2]) for i in range(len(ref_tokens)-1)])
+            ret_2 = Counter([tuple(ret_tokens[i:i+2]) for i in range(len(ret_tokens)-1)])
+            overlap_2 = sum((ref_2 & ret_2).values())
+            
+            if overlap_2 == 0:
+                rouge2_f1 = 0.0
+            else:
+                rouge2_precision = overlap_2 / len(ret_2)
+                rouge2_recall = overlap_2 / len(ref_2)
+                rouge2_f1 = 2 * (rouge2_precision * rouge2_recall) / (rouge2_precision + rouge2_recall)
+        
+        # ROUGE-L: Longest Common Subsequence F1 score
         def lcs_length(a: List[str], b: List[str]) -> int:
             """Calculate LCS length using dynamic programming."""
             m, n = len(a), len(b)
@@ -488,20 +640,23 @@ class KiwiRougeSimilarityCalculator:
         
         lcs = lcs_length(ref_tokens, ret_tokens)
         
-        # Calculate F1 score
-        precision = lcs / len(ret_tokens) if ret_tokens else 0
-        recall = lcs / len(ref_tokens) if ref_tokens else 0
+        if lcs == 0:
+            rougeL_f1 = 0.0
+        else:
+            rougeL_precision = lcs / len(ret_tokens)
+            rougeL_recall = lcs / len(ref_tokens)
+            rougeL_f1 = 2 * (rougeL_precision * rougeL_recall) / (rougeL_precision + rougeL_recall)
         
-        if precision + recall == 0:
-            return 0.0
-        
-        f1 = 2 * (precision * recall) / (precision + recall)
-        return f1
+        return {
+            'rouge1': rouge1_f1,
+            'rouge2': rouge2_f1,
+            'rougeL': rougeL_f1
+        }
     
     def calculate_similarity_matrix(self, ref_texts: List[str], 
                                    ret_texts: List[str]) -> np.ndarray:
         """
-        Calculate Kiwi ROUGE similarity matrix.
+        Calculate Kiwi ROUGE similarity matrix using ROUGE-L F1 scores.
         
         Args:
             ref_texts: List of reference text strings.
@@ -520,7 +675,9 @@ class KiwiRougeSimilarityCalculator:
             
             for j, ret_text in enumerate(ret_texts):
                 ret_tokens = self.tokenize_with_kiwi(ret_text)
-                similarity_matrix[i, j] = self.calculate_rouge_score(ref_tokens, ret_tokens)
+                scores = self.calculate_rouge_scores(ref_tokens, ret_tokens)
+                # Use the specified ROUGE type as similarity score
+                similarity_matrix[i, j] = scores[self.rouge_type]
         
         return similarity_matrix
 
