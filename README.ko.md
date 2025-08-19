@@ -14,6 +14,8 @@
 - **ranx 기반**: 검증된 IR 평가 메트릭 (Hit@K, NDCG@K, MRR 등) 지원
 - **LangChain 호환**: LangChain 검색기 인터페이스 표준 지원
 - **다양한 평가 방법**: ROUGE, 임베딩 유사도, 의미적 유사도 기반 평가
+- **구성 가능한 ROUGE 타입**: v0.0.9 신규 - ROUGE-1, ROUGE-2, ROUGE-L 선택 가능
+- **향상된 평가 로직**: 개선된 빈 qrels 처리 및 오류 복구
 - **실용적 설계**: 프로토타입부터 프로덕션까지 단계별 평가 지원
 - **높은 성능**: 기존 방법 대비 30~80% 한국어 평가 정확도 향상
 - **이중언어 출력**: 국제적 접근성을 위한 영어-한국어 병기 출력 지원
@@ -131,14 +133,17 @@ results = evaluate_with_ranx_similarity(
     embedding_model="BAAI/bge-m3"
 )
 
-# 한국어 특화 Kiwi ROUGE 방법
+# 한국어 특화 Kiwi ROUGE 방법 - 구성 가능한 ROUGE 타입 (v0.0.9 신규)
 results = evaluate_with_ranx_similarity(
     retriever=your_retriever,
     questions=your_questions,
     reference_contexts=your_reference_contexts,
     k=5,
     method='kiwi_rouge',
-    similarity_threshold=0.3  # Kiwi ROUGE는 낮은 임계값 권장
+    similarity_threshold=0.3,  # Kiwi ROUGE는 낮은 임계값 권장
+    rouge_type='rougeL',      # 신규: 'rouge1', 'rouge2', 'rougeL' 선택
+    tokenize_method='morphs', # 신규: 'morphs' 또는 'nouns' 선택
+    use_stopwords=True        # 신규: 불용어 필터링 설정
 )
 ```
 
@@ -212,6 +217,23 @@ results = evaluate_with_ranx_similarity(
     embedding_model="your-custom-model-name",
     similarity_threshold=0.6
 )
+```
+
+### v0.0.9 신규: 구성 가능한 ROUGE 타입
+
+```python
+# 다양한 ROUGE 메트릭 비교
+for rouge_type in ['rouge1', 'rouge2', 'rougeL']:
+    results = evaluate_with_ranx_similarity(
+        retriever=your_retriever,
+        questions=questions,
+        reference_contexts=references,
+        method='kiwi_rouge',
+        rouge_type=rouge_type,
+        tokenize_method='morphs',
+        similarity_threshold=0.3
+    )
+    print(f"{rouge_type.upper()}: Hit@5 = {results['hit_rate@5']:.3f}")
 ```
 
 ### 다양한 임계값으로 배치 평가

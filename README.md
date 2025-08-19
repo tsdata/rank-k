@@ -14,6 +14,8 @@
 - **ranx-based**: Supports proven IR evaluation metrics (Hit@K, NDCG@K, MRR, etc.)
 - **LangChain compatible**: Supports LangChain retriever interface standards
 - **Multiple evaluation methods**: ROUGE, embedding similarity, semantic similarity-based evaluation
+- **Configurable ROUGE types**: NEW in v0.0.9 - Choose between ROUGE-1, ROUGE-2, and ROUGE-L
+- **Enhanced evaluation logic**: Improved empty qrels handling and error recovery
 - **Practical design**: Supports step-by-step evaluation from prototype to production
 - **High performance**: 30-80% improvement in Korean evaluation accuracy over existing methods
 - **Bilingual output**: English-Korean output support for international accessibility
@@ -131,14 +133,17 @@ results = evaluate_with_ranx_similarity(
     embedding_model="BAAI/bge-m3"
 )
 
-# Korean-specialized Kiwi ROUGE method
+# Korean-specialized Kiwi ROUGE method with configurable ROUGE types (NEW in v0.0.9)
 results = evaluate_with_ranx_similarity(
     retriever=your_retriever,
     questions=your_questions,
     reference_contexts=your_reference_contexts,
     k=5,
     method='kiwi_rouge',
-    similarity_threshold=0.3  # Lower threshold recommended for Kiwi ROUGE
+    similarity_threshold=0.3,  # Lower threshold recommended for Kiwi ROUGE
+    rouge_type='rougeL',      # NEW: Choose 'rouge1', 'rouge2', or 'rougeL'
+    tokenize_method='morphs', # NEW: Choose 'morphs' or 'nouns'  
+    use_stopwords=True        # NEW: Configure stopword filtering
 )
 ```
 
@@ -212,6 +217,23 @@ results = evaluate_with_ranx_similarity(
     embedding_model="your-custom-model-name",
     similarity_threshold=0.6
 )
+```
+
+### NEW in v0.0.9: Configurable ROUGE Types
+
+```python
+# Compare different ROUGE metrics
+for rouge_type in ['rouge1', 'rouge2', 'rougeL']:
+    results = evaluate_with_ranx_similarity(
+        retriever=your_retriever,
+        questions=questions,
+        reference_contexts=references,
+        method='kiwi_rouge',
+        rouge_type=rouge_type,
+        tokenize_method='morphs',
+        similarity_threshold=0.3
+    )
+    print(f"{rouge_type.upper()}: Hit@5 = {results['hit_rate@5']:.3f}")
 ```
 
 ### Batch Evaluation with Different Thresholds

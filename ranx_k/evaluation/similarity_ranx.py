@@ -307,7 +307,6 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
                     effective_threshold = similarity_threshold
             else:
                 # For binary relevance, always include all reference documents in qrels
-                # but filter run based on threshold for retrieved documents
                 effective_threshold = similarity_threshold
             
             # Step 3: Add reference documents to qrels
@@ -317,21 +316,23 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
                 if use_graded_relevance:
                     best_similarity = ref_similarities[ref_idx]
                     if best_similarity >= effective_threshold:
+                        # Use the actual similarity score as the relevance grade
                         qrels_dict[query_id][ref_doc_id] = float(best_similarity)
                 else:
                     # Binary relevance: all reference docs are relevant
                     qrels_dict[query_id][ref_doc_id] = 1.0
             
-            # Step 4: Add reference documents to run (only those in qrels)
+            # Step 4: Add reference documents to run (only those in qrels) 
+            # This ensures proper matching between qrels and run
             for ref_idx, ref_text in enumerate(ref_texts):
                 ref_doc_id = f"ref_{ref_idx}"
                 
                 if ref_doc_id in qrels_dict[query_id]:
                     best_similarity = ref_similarities[ref_idx]
-                    if best_similarity >= effective_threshold:
-                        run_dict[query_id][ref_doc_id] = float(best_similarity)
+                    # Use similarity score directly for proper graded relevance
+                    run_dict[query_id][ref_doc_id] = float(best_similarity)
             
-            # Step 5: Add non-reference retrieved documents
+            # Step 5: Add non-reference retrieved documents (false positives)
             for j in range(len(retrieved_texts)):
                 if similarity_matrix.shape[0] > 0:
                     max_sim_to_any_ref = np.max(similarity_matrix[:, j])
