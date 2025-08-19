@@ -337,8 +337,9 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
             print(f"📋 Qrels items | qrels 항목 수: {len(qrels_dict[query_id])}")
             print(f"📋 Run items | run 항목 수: {len(run_dict[query_id])}")
             if evaluation_mode == 'reference_based':
-                retrieved_count = len([doc for doc in run_dict[query_id] if doc.startswith('ref_')])
-                print(f"📋 Retrieved reference docs | 검색된 참조 문서: {retrieved_count}/{len(ref_texts)}")
+                # Count how many retrieved docs met the similarity threshold
+                relevant_count = len(qrels_dict[query_id])
+                print(f"📋 Relevant docs found | 관련 문서 발견: {relevant_count}/{len(retrieved_texts)}")
             print("-" * 50)
     
     # Close progress bar if it was created
