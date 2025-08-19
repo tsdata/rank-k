@@ -33,6 +33,8 @@ class KiwiTokenizer:
         use_stopwords (bool): Whether to filter Korean stopwords.
         custom_words (List[tuple]): List of (word, pos_tag) tuples to add to dictionary.
         pos_filter (List[str]): List of POS tag prefixes to include in tokenization.
+                               Default: ['N', 'V', 'M', 'SL', 'SN']
+                               Set to [] to disable filtering and return all morphemes.
         
     Example:
         >>> custom_words = [('리비안', 'NNP'), ('테슬라', 'NNP')]
@@ -53,7 +55,9 @@ class KiwiTokenizer:
             method: Tokenization method ('morphs' for morphemes, 'nouns' for nouns only).
             use_stopwords: Whether to remove Korean stopwords.
             custom_words: List of (word, pos_tag) tuples to add to user dictionary.
-            pos_filter: List of POS tag prefixes to filter (default: ['N', 'V', 'M']).
+            pos_filter: List of POS tag prefixes to filter. 
+                       Default: ['N', 'V', 'M', 'SL', 'SN']
+                       Set to empty list [] to disable filtering and return all morphemes.
         """
         if not KIWI_AVAILABLE:
             raise ImportError(
@@ -63,7 +67,11 @@ class KiwiTokenizer:
         self.kiwi = Kiwi()
         self.method = method
         self.use_stopwords = use_stopwords
-        self.pos_filter = pos_filter or ['N', 'V', 'M']  # Default POS filters
+        # Use default if None, but allow empty list for no filtering
+        if pos_filter is None:
+            self.pos_filter = ['N', 'V', 'M', 'SL', 'SN']  # Enhanced default POS filters
+        else:
+            self.pos_filter = pos_filter  # User-specified (can be empty list)
         
         # Add custom words to user dictionary
         if custom_words:
@@ -145,8 +153,15 @@ class KiwiTokenizer:
         tokens = []
         
         for token, pos, _, _ in analyzed[0][0]:
-            # Use configurable POS filter instead of hardcoded tags
-            if (any(pos.startswith(prefix) for prefix in self.pos_filter) and 
+            # If pos_filter is empty, include all POS tags
+            if self.pos_filter:
+                # Apply POS filter if specified
+                pos_match = any(pos.startswith(prefix) for prefix in self.pos_filter)
+            else:
+                # No POS filtering - include all
+                pos_match = True
+            
+            if (pos_match and 
                 len(token) > 1 and 
                 token.lower() not in self.korean_stopwords):
                 tokens.append(token.lower())
@@ -249,12 +264,15 @@ class KiwiTokenizer:
         Set POS tag prefixes to filter during tokenization.
         
         Args:
-            pos_prefixes: List of POS tag prefixes (e.g., ['N', 'V', 'M']).
+            pos_prefixes: List of POS tag prefixes (e.g., ['N', 'V', 'M', 'SL', 'SN']).
+                         Set to [] to disable filtering and return all morphemes.
             
         Common POS prefixes:
             - N: Nouns (명사)
             - V: Verbs (동사)  
             - M: Modifiers (수식언)
+            - SL: Foreign words (외국어)
+            - SN: Numbers (숫자)
             - J: Particles (조사)
             - E: Endings (어미)
             - X: Others (기타)
@@ -262,9 +280,13 @@ class KiwiTokenizer:
         Example:
             >>> tokenizer = KiwiTokenizer()
             >>> tokenizer.set_pos_filter(['N', 'V'])  # Only nouns and verbs
+            >>> tokenizer.set_pos_filter([])  # No filtering - return all morphemes
         """
         self.pos_filter = pos_prefixes
-        print(f"🔧 POS filter updated | POS 필터 업데이트: {pos_prefixes}")
+        if pos_prefixes:
+            print(f"🔧 POS filter updated | POS 필터 업데이트: {pos_prefixes}")
+        else:
+            print("🔧 POS filter disabled | POS 필터 비활성화 - all morphemes will be returned")
     
     def get_pos_filter(self) -> List[str]:
         """
@@ -290,6 +312,8 @@ def setup_korean_tokenizer(custom_words: List[tuple] = None,
         custom_words: List of (word, pos_tag) tuples to add to dictionary.
         method: Tokenization method ('morphs' or 'nouns').
         pos_filter: List of POS tag prefixes to include.
+                   Default: ['N', 'V', 'M', 'SL', 'SN']
+                   Set to [] to disable filtering.
         use_stopwords: Whether to filter Korean stopwords.
     
     Returns:
