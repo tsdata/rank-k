@@ -17,6 +17,7 @@
 - **Graded relevance support**: Use similarity scores as relevance grades for NDCG calculation
 - **Configurable ROUGE types**: Choose between ROUGE-1, ROUGE-2, and ROUGE-L
 - **Strict threshold enforcement**: Documents below similarity threshold are correctly treated as retrieval failures
+- **Retrieval order preservation**: Accurate evaluation of reranking systems (v0.0.16+)
 - **Practical design**: Supports step-by-step evaluation from prototype to production
 - **High performance**: 30-80% improvement in Korean evaluation accuracy over existing methods
 - **Bilingual output**: English-Korean output support for international accessibility

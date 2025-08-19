@@ -279,52 +279,73 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
             # This mode calculates proper recall by tracking which reference docs were retrieved
             # AND includes false positives for correct precision calculation
             
-            # Step 1: Add ALL reference documents to qrels (ground truth)
+            # Step 1: Initialize qrels for all reference documents
+            # We'll set their relevance scores based on similarity to retrieved docs
+            ref_relevance_scores = {}  # Track best similarity for each reference
+            
             for ref_idx in range(len(ref_texts)):
                 ref_id = f"ref_{ref_idx}"
-                # All reference docs are relevant (they are the ground truth)
-                qrels_dict[query_id][ref_id] = 1.0
+                ref_relevance_scores[ref_id] = 0.0  # Initialize with 0
             
-            # Step 2: Track which retrieved docs match which references
-            matched_retrieved = set()  # Track which retrieved docs have been matched
-            
-            # Check which reference documents were actually retrieved
-            for ref_idx in range(len(ref_texts)):
-                ref_id = f"ref_{ref_idx}"
-                
-                # Find best matching retrieved document for this reference
-                if similarity_matrix.shape[1] > 0:  # If we have retrieved docs
-                    similarities = similarity_matrix[ref_idx, :]
-                    best_match_idx = np.argmax(similarities)
-                    best_similarity = similarities[best_match_idx]
-                    
-                    # Add to run only if similarity meets threshold
-                    if best_similarity >= similarity_threshold:
-                        matched_retrieved.add(best_match_idx)
-                        if use_graded_relevance:
-                            # For graded relevance, use scaled similarity score
-                            scaled_score = 1.0 + (best_similarity - similarity_threshold) * 9.0 / (1.0 - similarity_threshold)
-                            run_dict[query_id][ref_id] = float(scaled_score)
-                        else:
-                            # For binary relevance, use actual similarity for ranking
-                            run_dict[query_id][ref_id] = float(best_similarity)
-            
-            # Step 3: Add false positives (retrieved docs that don't match any reference)
-            # This ensures correct precision and ranking calculations
+            # Step 2: Process retrieved documents in their ORIGINAL ORDER
+            # This preserves the ranking from the retriever (including reranking)
             for ret_idx in range(len(retrieved_texts)):
-                if ret_idx not in matched_retrieved:
-                    # This retrieved doc doesn't match any reference above threshold
-                    ret_id = f"ret_{ret_idx}"
+                # Calculate similarity to all reference documents
+                if similarity_matrix.shape[0] > 0:
+                    # Get similarities between this retrieved doc and all reference docs
+                    similarities_to_refs = similarity_matrix[:, ret_idx]
+                    best_ref_idx = np.argmax(similarities_to_refs)
+                    best_similarity = similarities_to_refs[best_ref_idx]
                     
-                    # Calculate its best similarity to any reference (for ranking)
-                    if similarity_matrix.shape[0] > 0:
-                        max_similarity = np.max(similarity_matrix[:, ret_idx])
+                    # Check if this retrieved doc matches any reference above threshold
+                    if best_similarity >= similarity_threshold:
+                        # This retrieved doc matches a reference
+                        ref_id = f"ref_{best_ref_idx}"
+                        
+                        # Update best similarity for this reference (for qrels)
+                        if best_similarity > ref_relevance_scores[ref_id]:
+                            ref_relevance_scores[ref_id] = best_similarity
+                        
+                        # CRITICAL: Preserve retrieval order - use position-based score for run_dict
+                        base_score = 1000.0
+                        position_decay = 10.0
+                        
+                        # run_dict score: purely position-based to preserve retrieval order
+                        order_score = base_score - (ret_idx * position_decay)
+                        
+                        # Only update if this is a better score (preserves best match)
+                        if ref_id not in run_dict[query_id] or order_score > run_dict[query_id][ref_id]:
+                            run_dict[query_id][ref_id] = float(order_score)
                     else:
-                        max_similarity = 0.0
-                    
-                    # Add to run with its similarity score (even if below threshold)
-                    # This ensures it's counted in precision and affects ranking
-                    run_dict[query_id][ret_id] = float(max_similarity)
+                        # This retrieved doc doesn't match any reference above threshold (false positive)
+                        ret_id = f"ret_{ret_idx}"
+                        # False positives also maintain retrieval order
+                        base_score = 1000.0
+                        position_decay = 10.0
+                        order_score = base_score - (ret_idx * position_decay)
+                        run_dict[query_id][ret_id] = float(order_score)
+                else:
+                    # No reference docs - all retrieved are false positives
+                    ret_id = f"ret_{ret_idx}"
+                    run_dict[query_id][ret_id] = float(0.0)
+            
+            # Step 3: Set qrels based on reference relevance scores
+            for ref_id, similarity in ref_relevance_scores.items():
+                if similarity >= similarity_threshold:
+                    if use_graded_relevance:
+                        # Graded: use actual similarity score
+                        qrels_dict[query_id][ref_id] = float(similarity)
+                    else:
+                        # Binary: use 1.0 for relevant
+                        qrels_dict[query_id][ref_id] = 1.0
+                else:
+                    # Not retrieved or below threshold
+                    if use_graded_relevance:
+                        # For graded, could use 0 or small value
+                        qrels_dict[query_id][ref_id] = 0.0
+                    else:
+                        # For binary, 0 means not relevant
+                        qrels_dict[query_id][ref_id] = 0.0
         else:
             # Retrieval-based evaluation: Evaluate only actually retrieved documents
             # This mode measures precision of retrieval but cannot calculate proper recall
@@ -338,18 +359,27 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
                 else:
                     max_similarity = 0.0
                 
-                # Add to run: all retrieved documents with their similarity scores
-                run_dict[query_id][doc_id] = float(max_similarity)
+                # CRITICAL: Preserve exact retrieval order from the retriever
+                # run_dict scores are used by ranx to rank documents
+                # We use position-based scores to maintain retrieval order
+                base_score = 1000.0  # High base to ensure all scores are positive
+                position_decay = 10.0  # Significant decay to maintain order
                 
-                # Add to qrels: only documents that meet similarity threshold
+                # Score for run_dict: preserves retrieval order strictly
+                # Higher position (lower j) = higher score, regardless of similarity
+                order_preserving_score = base_score - (j * position_decay)
+                
+                # Add to run: all retrieved documents with order-preserving scores
+                run_dict[query_id][doc_id] = float(order_preserving_score)
+                
+                # Add to qrels: relevance judgments (binary 1/0 or graded scores)
                 if max_similarity >= similarity_threshold:
                     if use_graded_relevance:
-                        # Graded relevance: use scaled similarity scores as relevance grades
-                        # Scale from [threshold, 1.0] to [1.0, 10.0] for ranx compatibility
-                        scaled_score = 1.0 + (max_similarity - similarity_threshold) * 9.0 / (1.0 - similarity_threshold)
-                        qrels_dict[query_id][doc_id] = float(scaled_score)
+                        # Graded relevance: use actual similarity as relevance grade
+                        # No scaling needed - ranx handles raw similarity scores
+                        qrels_dict[query_id][doc_id] = float(max_similarity)
                     else:
-                        # Binary relevance: use 1.0 for all relevant documents
+                        # Binary relevance: strictly 1.0 for relevant documents
                         qrels_dict[query_id][doc_id] = 1.0
         
         # Debug info for first few queries
