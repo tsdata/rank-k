@@ -275,31 +275,56 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         run_dict[query_id] = {}
 
         if evaluation_mode == 'reference_based':
-            # Reference-based evaluation: Compare retrieved docs against reference docs
-            # This mode calculates proper recall by including reference documents in evaluation
+            # Reference-based evaluation: Include all reference documents in qrels
+            # This mode calculates proper recall by tracking which reference docs were retrieved
+            # AND includes false positives for correct precision calculation
             
-            for j in range(len(retrieved_texts)):
-                doc_id = f"doc_{j}"
+            # Step 1: Add ALL reference documents to qrels (ground truth)
+            for ref_idx in range(len(ref_texts)):
+                ref_id = f"ref_{ref_idx}"
+                # All reference docs are relevant (they are the ground truth)
+                qrels_dict[query_id][ref_id] = 1.0
+            
+            # Step 2: Track which retrieved docs match which references
+            matched_retrieved = set()  # Track which retrieved docs have been matched
+            
+            # Check which reference documents were actually retrieved
+            for ref_idx in range(len(ref_texts)):
+                ref_id = f"ref_{ref_idx}"
                 
-                # Calculate maximum similarity between this retrieved doc and any reference doc
-                if similarity_matrix.shape[0] > 0:
-                    max_similarity = np.max(similarity_matrix[:, j])
-                else:
-                    max_similarity = 0.0
-                
-                # Add to run: all retrieved documents with their similarity scores
-                run_dict[query_id][doc_id] = float(max_similarity)
-                
-                # Add to qrels: only documents that meet similarity threshold
-                if max_similarity >= similarity_threshold:
-                    if use_graded_relevance:
-                        # Graded relevance: use scaled similarity scores as relevance grades
-                        # Scale from [threshold, 1.0] to [1.0, 10.0] for ranx compatibility
-                        scaled_score = 1.0 + (max_similarity - similarity_threshold) * 9.0 / (1.0 - similarity_threshold)
-                        qrels_dict[query_id][doc_id] = float(scaled_score)
+                # Find best matching retrieved document for this reference
+                if similarity_matrix.shape[1] > 0:  # If we have retrieved docs
+                    similarities = similarity_matrix[ref_idx, :]
+                    best_match_idx = np.argmax(similarities)
+                    best_similarity = similarities[best_match_idx]
+                    
+                    # Add to run only if similarity meets threshold
+                    if best_similarity >= similarity_threshold:
+                        matched_retrieved.add(best_match_idx)
+                        if use_graded_relevance:
+                            # For graded relevance, use scaled similarity score
+                            scaled_score = 1.0 + (best_similarity - similarity_threshold) * 9.0 / (1.0 - similarity_threshold)
+                            run_dict[query_id][ref_id] = float(scaled_score)
+                        else:
+                            # For binary relevance, use actual similarity for ranking
+                            run_dict[query_id][ref_id] = float(best_similarity)
+            
+            # Step 3: Add false positives (retrieved docs that don't match any reference)
+            # This ensures correct precision and ranking calculations
+            for ret_idx in range(len(retrieved_texts)):
+                if ret_idx not in matched_retrieved:
+                    # This retrieved doc doesn't match any reference above threshold
+                    ret_id = f"ret_{ret_idx}"
+                    
+                    # Calculate its best similarity to any reference (for ranking)
+                    if similarity_matrix.shape[0] > 0:
+                        max_similarity = np.max(similarity_matrix[:, ret_idx])
                     else:
-                        # Binary relevance: use 1.0 for all relevant documents
-                        qrels_dict[query_id][doc_id] = 1.0
+                        max_similarity = 0.0
+                    
+                    # Add to run with its similarity score (even if below threshold)
+                    # This ensures it's counted in precision and affects ranking
+                    run_dict[query_id][ret_id] = float(max_similarity)
         else:
             # Retrieval-based evaluation: Evaluate only actually retrieved documents
             # This mode measures precision of retrieval but cannot calculate proper recall
@@ -337,9 +362,12 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
             print(f"📋 Qrels items | qrels 항목 수: {len(qrels_dict[query_id])}")
             print(f"📋 Run items | run 항목 수: {len(run_dict[query_id])}")
             if evaluation_mode == 'reference_based':
-                # Count how many retrieved docs met the similarity threshold
-                relevant_count = len(qrels_dict[query_id])
-                print(f"📋 Relevant docs found | 관련 문서 발견: {relevant_count}/{len(retrieved_texts)}")
+                # Count how many reference docs were found and false positives
+                ref_found = sum(1 for doc_id in run_dict[query_id] if doc_id.startswith('ref_'))
+                false_positives = sum(1 for doc_id in run_dict[query_id] if doc_id.startswith('ret_'))
+                total_refs = len(ref_texts)
+                print(f"📋 Reference docs found | 참조 문서 발견: {ref_found}/{total_refs}")
+                print(f"📋 False positives | 거짓 긍정: {false_positives}/{len(retrieved_texts)}")
             print("-" * 50)
     
     # Close progress bar if it was created
@@ -378,11 +406,15 @@ def evaluate_with_ranx_similarity(retriever, questions: List[str],
         print(f"  Threshold used | 사용된 임계값: {similarity_threshold}")
         
         if evaluation_mode == 'reference_based':
-            # Count documents in qrels (relevant documents that were retrieved)
-            total_retrieved = sum(len(qrels) for qrels in qrels_dict.values())
+            # Count how many reference documents were found across all queries
+            # Only count ref_ IDs, not ret_ IDs (false positives)
+            total_found = sum(
+                sum(1 for doc_id in run_dict[q_id] if doc_id.startswith('ref_'))
+                for q_id in run_dict
+            )
             total_reference = sum(len(ref_docs) for ref_docs in reference_contexts)
-            overall_recall = total_retrieved / total_reference if total_reference > 0 else 0
-            print(f"  Overall recall | 전체 재현율: {overall_recall:.3f} ({total_retrieved}/{total_reference})")
+            overall_recall = total_found / total_reference if total_reference > 0 else 0
+            print(f"  Overall recall | 전체 재현율: {overall_recall:.3f} ({total_found}/{total_reference})")
         
         return results
         
