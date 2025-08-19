@@ -11,11 +11,12 @@
 ## 🚀 Key Features
 
 - **Korean-optimized**: Accurate tokenization using Kiwi morphological analyzer
-- **ranx-based**: Supports proven IR evaluation metrics (Hit@K, NDCG@K, MRR, etc.)
+- **ranx-based**: Supports proven IR evaluation metrics (Hit@K, NDCG@K, MRR, MAP@K, etc.)
 - **LangChain compatible**: Supports LangChain retriever interface standards
 - **Multiple evaluation methods**: ROUGE, embedding similarity, semantic similarity-based evaluation
-- **Configurable ROUGE types**: NEW in v0.0.9 - Choose between ROUGE-1, ROUGE-2, and ROUGE-L
-- **Enhanced evaluation logic**: Improved empty qrels handling and error recovery
+- **Graded relevance support**: Use similarity scores as relevance grades for NDCG calculation
+- **Configurable ROUGE types**: Choose between ROUGE-1, ROUGE-2, and ROUGE-L
+- **Strict threshold enforcement**: Documents below similarity threshold are correctly treated as retrieval failures
 - **Practical design**: Supports step-by-step evaluation from prototype to production
 - **High performance**: 30-80% improvement in Korean evaluation accuracy over existing methods
 - **Bilingual output**: English-Korean output support for international accessibility
@@ -99,13 +100,14 @@ results = evaluate_with_ranx_similarity(
     k=5,
     method='embedding',
     similarity_threshold=0.6,
-    evaluation_mode='reference_based'  # NEW: Evaluates against all reference docs
+    use_graded_relevance=False,        # Binary relevance (default)
+    evaluation_mode='reference_based'  # Evaluates against all reference docs
 )
 
 print(f"Hit@5: {results['hit_rate@5']:.3f}")
 print(f"NDCG@5: {results['ndcg@5']:.3f}")
 print(f"MRR: {results['mrr']:.3f}")
-print(f"Recall@5: {results.get('recall@5', 'N/A')}")  # Available in reference_based mode
+print(f"MAP@5: {results['map@5']:.3f}")
 ```
 
 #### Using Different Embedding Models
@@ -133,7 +135,7 @@ results = evaluate_with_ranx_similarity(
     embedding_model="BAAI/bge-m3"
 )
 
-# Korean-specialized Kiwi ROUGE method with configurable ROUGE types (NEW in v0.0.9)
+# Korean-specialized Kiwi ROUGE method with configurable ROUGE types
 results = evaluate_with_ranx_similarity(
     retriever=your_retriever,
     questions=your_questions,
@@ -141,9 +143,9 @@ results = evaluate_with_ranx_similarity(
     k=5,
     method='kiwi_rouge',
     similarity_threshold=0.3,  # Lower threshold recommended for Kiwi ROUGE
-    rouge_type='rougeL',      # NEW: Choose 'rouge1', 'rouge2', or 'rougeL'
-    tokenize_method='morphs', # NEW: Choose 'morphs' or 'nouns'  
-    use_stopwords=True        # NEW: Configure stopword filtering
+    rouge_type='rougeL',      # Choose 'rouge1', 'rouge2', or 'rougeL'
+    tokenize_method='morphs', # Choose 'morphs' or 'nouns'  
+    use_stopwords=True        # Configure stopword filtering
 )
 ```
 
@@ -205,6 +207,24 @@ ranxk_rouge1 = 0.421  # +79.9% improvement!
 
 ## 🔍 Advanced Usage
 
+### Graded Relevance Mode
+
+```python
+# Graded relevance mode - uses similarity scores as relevance grades
+results = evaluate_with_ranx_similarity(
+    retriever=your_retriever,
+    questions=questions,
+    reference_contexts=references,
+    method='embedding',
+    similarity_threshold=0.6,
+    use_graded_relevance=True   # Uses similarity scores as relevance grades
+)
+
+print(f"NDCG@5: {results['ndcg@5']:.3f}")
+```
+
+> **Note on Graded Relevance**: The `use_graded_relevance` parameter primarily affects NDCG (Normalized Discounted Cumulative Gain) calculation. Other metrics like Hit@K, MRR, and MAP treat relevance as binary in the ranx library. Use graded relevance when you need to distinguish between different levels of document relevance quality.
+
 ### Custom Embedding Models
 
 ```python
@@ -215,11 +235,12 @@ results = evaluate_with_ranx_similarity(
     reference_contexts=references,
     method='embedding',
     embedding_model="your-custom-model-name",
-    similarity_threshold=0.6
+    similarity_threshold=0.6,
+    use_graded_relevance=True
 )
 ```
 
-### NEW in v0.0.9: Configurable ROUGE Types
+### Configurable ROUGE Types
 
 ```python
 # Compare different ROUGE metrics
@@ -236,9 +257,10 @@ for rouge_type in ['rouge1', 'rouge2', 'rougeL']:
     print(f"{rouge_type.upper()}: Hit@5 = {results['hit_rate@5']:.3f}")
 ```
 
-### Batch Evaluation with Different Thresholds
+### Threshold Sensitivity Analysis
 
 ```python
+# Analyze how different thresholds affect evaluation
 thresholds = [0.3, 0.5, 0.7]
 for threshold in thresholds:
     results = evaluate_with_ranx_similarity(
@@ -247,7 +269,7 @@ for threshold in thresholds:
         reference_contexts=references,
         similarity_threshold=threshold
     )
-    print(f"Threshold {threshold}: Hit@5 = {results['hit_rate@5']:.3f}")
+    print(f"Threshold {threshold}: Hit@5={results['hit_rate@5']:.3f}, NDCG@5={results['ndcg@5']:.3f}")
 ```
 
 ## 📚 Examples
@@ -257,16 +279,9 @@ for threshold in thresholds:
 - [Embedding Models Comparison](examples/embedding_models_comparison.py)
 - [Comprehensive Comparison](examples/comprehensive_comparison.py)
 
-## 📖 Documentation
-
-- [Installation Guide](docs/en/installation.md)
-- [Quick Start Guide](docs/en/quickstart.md)
-- [API Reference](docs/en/api-reference.md)
-- [Korean Documentation](docs/ko/)
-
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome! Please feel free to submit issues and pull requests.
 
 ## 📄 License
 
@@ -280,9 +295,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 🐛 [Issue Tracker](https://github.com/tsdata/ranx-k/issues)
+- 🐛 Issue Tracker: Please submit issues on GitHub
 - 📧 Email: ontofinance@gmail.com
-- 📖 [Documentation](docs/en/)
 
 ---
 

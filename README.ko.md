@@ -11,11 +11,12 @@
 ## 🚀 주요 특징
 
 - **한국어 특화**: Kiwi 형태소 분석기를 활용한 정확한 토큰화
-- **ranx 기반**: 검증된 IR 평가 메트릭 (Hit@K, NDCG@K, MRR 등) 지원
+- **ranx 기반**: 검증된 IR 평가 메트릭 (Hit@K, NDCG@K, MRR, MAP@K 등) 지원
 - **LangChain 호환**: LangChain 검색기 인터페이스 표준 지원
 - **다양한 평가 방법**: ROUGE, 임베딩 유사도, 의미적 유사도 기반 평가
-- **구성 가능한 ROUGE 타입**: v0.0.9 신규 - ROUGE-1, ROUGE-2, ROUGE-L 선택 가능
-- **향상된 평가 로직**: 개선된 빈 qrels 처리 및 오류 복구
+- **등급별 관련성 지원**: NDCG 계산을 위해 유사도 점수를 관련성 등급으로 사용
+- **구성 가능한 ROUGE 타입**: ROUGE-1, ROUGE-2, ROUGE-L 선택 가능
+- **엄격한 임계값 적용**: 유사도 임계값 미만 문서는 검색 실패로 올바르게 처리
 - **실용적 설계**: 프로토타입부터 프로덕션까지 단계별 평가 지원
 - **높은 성능**: 기존 방법 대비 30~80% 한국어 평가 정확도 향상
 - **이중언어 출력**: 국제적 접근성을 위한 영어-한국어 병기 출력 지원
@@ -99,13 +100,14 @@ results = evaluate_with_ranx_similarity(
     k=5,
     method='embedding',
     similarity_threshold=0.6,
-    evaluation_mode='reference_based'  # 신규: 모든 참조 문서 대상 평가
+    use_graded_relevance=False,        # 이진 관련성 (기본값)
+    evaluation_mode='reference_based'  # 모든 참조 문서 대상 평가
 )
 
 print(f"Hit@5: {results['hit_rate@5']:.3f}")
 print(f"NDCG@5: {results['ndcg@5']:.3f}")
 print(f"MRR: {results['mrr']:.3f}")
-print(f"Recall@5: {results.get('recall@5', 'N/A')}")  # reference_based 모드에서 사용 가능
+print(f"MAP@5: {results['map@5']:.3f}")
 ```
 
 #### 다른 임베딩 모델 사용
@@ -133,7 +135,7 @@ results = evaluate_with_ranx_similarity(
     embedding_model="BAAI/bge-m3"
 )
 
-# 한국어 특화 Kiwi ROUGE 방법 - 구성 가능한 ROUGE 타입 (v0.0.9 신규)
+# 한국어 특화 Kiwi ROUGE 방법 - 구성 가능한 ROUGE 타입
 results = evaluate_with_ranx_similarity(
     retriever=your_retriever,
     questions=your_questions,
@@ -141,9 +143,9 @@ results = evaluate_with_ranx_similarity(
     k=5,
     method='kiwi_rouge',
     similarity_threshold=0.3,  # Kiwi ROUGE는 낮은 임계값 권장
-    rouge_type='rougeL',      # 신규: 'rouge1', 'rouge2', 'rougeL' 선택
-    tokenize_method='morphs', # 신규: 'morphs' 또는 'nouns' 선택
-    use_stopwords=True        # 신규: 불용어 필터링 설정
+    rouge_type='rougeL',      # 'rouge1', 'rouge2', 'rougeL' 선택
+    tokenize_method='morphs', # 'morphs' 또는 'nouns' 선택
+    use_stopwords=True        # 불용어 필터링 설정
 )
 ```
 
@@ -205,6 +207,24 @@ ranxk_rouge1 = 0.421  # +79.9% 향상!
 
 ## 🔍 고급 사용법
 
+### 등급별 관련성 모드
+
+```python
+# 등급별 관련성 모드 - 유사도 점수를 관련성 등급으로 사용
+results = evaluate_with_ranx_similarity(
+    retriever=your_retriever,
+    questions=questions,
+    reference_contexts=references,
+    method='embedding',
+    similarity_threshold=0.6,
+    use_graded_relevance=True   # 유사도 점수를 관련성 등급으로 사용
+)
+
+print(f"NDCG@5: {results['ndcg@5']:.3f}")
+```
+
+> **등급별 관련성 참고사항**: `use_graded_relevance` 매개변수는 주로 NDCG (Normalized Discounted Cumulative Gain) 계산에 영향을 미칩니다. Hit@K, MRR, MAP 같은 다른 메트릭들은 ranx 라이브러리에서 관련성을 이진으로 처리합니다. 문서 관련성의 품질 차이를 구분해야 할 때 등급별 관련성을 사용하세요.
+
 ### 커스텀 임베딩 모델
 
 ```python
@@ -219,7 +239,7 @@ results = evaluate_with_ranx_similarity(
 )
 ```
 
-### v0.0.9 신규: 구성 가능한 ROUGE 타입
+### 구성 가능한 ROUGE 타입
 
 ```python
 # 다양한 ROUGE 메트릭 비교
@@ -236,9 +256,10 @@ for rouge_type in ['rouge1', 'rouge2', 'rougeL']:
     print(f"{rouge_type.upper()}: Hit@5 = {results['hit_rate@5']:.3f}")
 ```
 
-### 다양한 임계값으로 배치 평가
+### 임계값 민감도 분석
 
 ```python
+# 다양한 임계값이 평가에 미치는 영향 분석
 thresholds = [0.3, 0.5, 0.7]
 for threshold in thresholds:
     results = evaluate_with_ranx_similarity(
@@ -247,7 +268,7 @@ for threshold in thresholds:
         reference_contexts=references,
         similarity_threshold=threshold
     )
-    print(f"임계값 {threshold}: Hit@5 = {results['hit_rate@5']:.3f}")
+    print(f"임계값 {threshold}: Hit@5={results['hit_rate@5']:.3f}, NDCG@5={results['ndcg@5']:.3f}")
 ```
 
 ## 📚 예제
@@ -257,16 +278,9 @@ for threshold in thresholds:
 - [임베딩 모델 비교](examples/embedding_models_comparison.py)
 - [종합 비교](examples/comprehensive_comparison.py)
 
-## 📖 문서
-
-- [설치 가이드](docs/ko/installation.md)
-- [빠른 시작 가이드](docs/ko/quickstart.md)
-- [API 참조](docs/ko/api-reference.md)
-- [영어 문서](docs/en/)
-
 ## 🤝 기여하기
 
-기여를 환영합니다! 자세한 내용은 [기여 가이드](CONTRIBUTING.md)를 참조하세요.
+기여를 환영합니다! 이슈와 풀 리퀘스트를 자유롭게 제출해 주세요.
 
 ## 📄 라이선스
 
@@ -280,9 +294,8 @@ for threshold in thresholds:
 
 ## 📞 지원
 
-- 🐛 [이슈 트래커](https://github.com/tsdata/ranx-k/issues)
+- 🐛 이슈 트래커: GitHub에서 이슈를 제출해 주세요
 - 📧 이메일: ontofinance@gmail.com
-- 📖 [문서](docs/ko/)
 
 ---
 
